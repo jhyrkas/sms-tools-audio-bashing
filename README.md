@@ -1,3 +1,14 @@
+sms-tools-audio-bashing
+=========
+Fork of sms-tools. This repo will be used for audio bashing, an exploration of roughness control in audio.
+sms-tools is used for sinusoidal analysis of audio files. Ideally, if sms-tools becomes installable as a library,
+this fork will cease to exist and the project will exist in its own repo that depends on the sms-tools library.
+See original sms-tools README below
+
+----------
+*ORIGINAL*
+----------
+
 sms-tools
 ========= 
 
