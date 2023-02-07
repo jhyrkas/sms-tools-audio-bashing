@@ -28,12 +28,6 @@ class Track :
         self.track_id = track_id
         self.freqs = []
         self.amps = []
-        self.min_freq = 0
-        self.max_freq = 0
-        self.freq_sum = 0
-        self.min_amp = 0
-        self.max_amp = 0
-        self.amp_sum = 0
         self.frame_count = 0
         self.start_time = 0
         self.end_time = 0
@@ -64,26 +58,25 @@ class Track :
             self.end_time = snippet.frame.end_time
 
     def get_avg_freq(self) :
-        # return np.mean(np.array(self.freqs))
-        return self.freq_sum / self.frame_count
+        return np.mean(np.array(self.freqs))
     
     def get_std_freq(self) :
         return np.std(np.array(self.freqs))
 
     def get_min_freq(self) :
-        return self.min_freq
+        return np.min(self.freqs)
 
     def get_max_freq(self) :
-        return self.max_freq
+        return np.max(self.freqs)
 
     def get_avg_amp(self) :
-        return self.amp_sum / self.frame_count
+        return np.mean(np.array(self.amps))
 
     def get_min_amp(self) :
-        return self.min_amp
+        return np.min(self.amps)
 
     def get_max_amp(self) :
-        return self.max_amp
+        return np.max(self.amps)
 
     def get_track_times(self) :
         return self.start_time, self.end_time
@@ -183,10 +176,10 @@ class AnalyzedAudio :
                     self.tracks[snippet.track_id] = Track(self, snippet.track_id, self.hop_len_s)
                 self.tracks[snippet.track_id].add_frame(snippet)
 
-    # TODO: consider how this should be structured
-    def find_areas_of_roughness(self, other_audio, min_freq, max_freq) :
+    # TODO: consider how this is structured / what should be stored
+    def calculate_roughness_overlap(self, other_audio) :
         frame_min = min(self.frame_count, other_audio.frame_count)
-        partial_overlap_dict = {}
+        overlap_dict = {}
         for i in range(frame_min) :
             this_frame = self.frames[i]
             that_frame = other_audio.frames[i]
@@ -198,18 +191,18 @@ class AnalyzedAudio :
                     this_partial = partials_this[j]
                     that_partial = partials_that[k]
                     freq_diff = abs(this_partial.freq - that_partial.freq)
-                    if freq_diff >= min_freq and freq_diff <= max_freq :
-                        r = calculate_roughness_contribution(this_partial.freq, this_partial.amp, that_partial.freq, that_partial.amp)
-                        partial_pair = (this_partial.track_id, that_partial.track_id)
-                        if partial_pair not in partial_overlap_dict :
-                            partial_overlap_dict[partial_pair] = (r,i,0)
-                        else :
-                            partial_overlap_dict[partial_pair] = (max(partial_overlap_dict[partial_pair][0],r),partial_overlap_dict[partial_pair][1],i-partial_overlap_dict[partial_pair][2])
-        return partial_overlap_dict
+                    #r = calculate_roughness_setheras(this_partial.freq, this_partial.amp, that_partial.freq, that_partial.amp)
+                    r = calculate_roughness_vassilakis(this_partial.freq, this_partial.amp, that_partial.freq, that_partial.amp)
+                    partial_pair = (this_partial.track_id, that_partial.track_id)
+                    if partial_pair not in overlap_dict :
+                        overlap_dict[partial_pair] = ([r],i)
+                    else :
+                        overlap_dict[partial_pair][0].append(r)
+        return overlap_dict
 
 # equation from Sethares (various papers)
 # could use updated equation from Vassilakis 2007
-def calculate_roughness_contribution(f1,v1,f2,v2) :
+def calculate_roughness_setheras(f1,v1,f2,v2) :
     a = -3.5
     b = -5.75
     d = 0.24
@@ -219,6 +212,19 @@ def calculate_roughness_contribution(f1,v1,f2,v2) :
     freq_diff = abs(f1 - f2)
     return v1*v2*(np.exp(a*s*freq_diff) - np.exp(b*s*freq_diff))
 
+# equation from Vassilakis 2007
+def calculate_roughness_vassilakis(f1,v1,f2,v2) :
+    X = (v1*v2)**0.1
+    Y = 0.5 * ((2*min(v1,v2))/(v1+v2))**3.11
+    b1 = -3.5
+    b2 = -5.75
+    s1 = 0.0207
+    s2 = 18.96
+    s = 0.24/(s1*min(f1,f2) + s2)
+    fdiff = abs(f1-f2)
+    Z = np.exp(b1*s*fdiff)-np.exp(b2*s*fdiff)
+    return X*Y*Z
+
 if len(sys.argv) < 3 :
     print('usage: python3 analyze_audio_sms.py <audiofile1> <audiofile2> [optional-nsines] [optional-freq-diff-min] [optional-freq-diff-max] [optional-new-delta]')
     sys.exit(1)
@@ -226,23 +232,16 @@ if len(sys.argv) < 3 :
 audiofile1 = sys.argv[1]
 audiofile2 = sys.argv[2]
 n_sines = 10 if len(sys.argv) < 4 else int(sys.argv[3])
-min_freq = 10.0 if len(sys.argv) < 5 else float(sys.argv[4])
-max_freq = 30.0 if len(sys.argv) < 6 else float(sys.argv[5])
-new_delta = 3.0 if len(sys.argv) < 7 else float(sys.argv[6])
+# TODO: consider what delta should be...
+new_delta = 3.0 if len(sys.argv) < 5 else float(sys.argv[4])
 
 s1,fs1 = sf.read(audiofile1)
 s2,fs2 = sf.read(audiofile2)
 analysis1 = AnalyzedAudio(s1,fs1,n_sines)
 analysis2 = AnalyzedAudio(s2,fs2,n_sines)
 
-partial_overlap_dict = analysis1.find_areas_of_roughness(analysis2, min_freq, max_freq)
-for key in partial_overlap_dict.keys() :
-    t_id1, t_id2 = key
-    track1 = analysis1.tracks[t_id1]
-    track2 = analysis2.tracks[t_id2]
-    print(track1.get_avg_freq())
-    print(track2.get_avg_freq())
-threshold_r = 1.0e-5 # roughness
+overlap_dict = analysis1.calculate_roughness_overlap(analysis2)
+threshold_r = 1.0e-2 # roughness
 threshold_f = 10 # time in frames (100 ms) TODO: change
 
 track1_filters = []
@@ -253,13 +252,15 @@ track1_sin_deltas = []
 track2_sin_deltas = []
 track1_sin_filts = []
 track2_sin_filts = []
-for key in partial_overlap_dict.keys() :
+for key in overlap_dict.keys() :
     t_id1, t_id2 = key
     track1 = analysis1.tracks[t_id1]
     track2 = analysis2.tracks[t_id2]
 
-    roughness, start_frame, end_frame = partial_overlap_dict[key]
-    if roughness > threshold_r and end_frame - start_frame >= threshold_f: # TODO: better
+    roughnesses, start_frame = overlap_dict[key]
+    roughness = np.mean(roughnesses)
+    overlap_length = len(roughnesses)
+    if roughness > threshold_r and overlap_length >= threshold_f: # TODO: better
         filter_track1 = track1.get_avg_amp() < track2.get_avg_amp()
         if filter_track1 :
             w0 = track1.get_avg_freq()
@@ -268,7 +269,7 @@ for key in partial_overlap_dict.keys() :
             fs = 48000 # TODO: better
             b,a = scipy.signal.iirnotch(w0,Q,fs)
             track1_filters.append(np.hstack((b,a)))
-            print('TRACK 1: filtering frequency {f} with Q {Q}'.format(f=w0,Q=Q))
+            print('TRACK 1: filtering frequency {f} with Q {Q}, registered roughness {r: .5f} for {i} frames'.format(f=w0,Q=Q,r=roughness,i=overlap_length))
             print(b)
             print(a)
             
@@ -288,7 +289,7 @@ for key in partial_overlap_dict.keys() :
             fs = 48000 # TODO: better
             b,a = scipy.signal.iirnotch(w0,Q,fs)
             track2_filters.append(np.hstack((b,a)))
-            print('TRACK 2: filtering frequency {f} with Q {Q}'.format(f=w0,Q=Q))
+            print('TRACK 2: filtering frequency {f} with Q {Q}, registered roughness {r: .5f} for {i} frames'.format(f=w0,Q=Q,r=roughness,i=overlap_length))
             print(b)
             print(a)
 
@@ -351,4 +352,3 @@ for i in range(len(track2_sin_params)) :
     #plt.show()
 
 sf.write('bashed.wav', out_bashed, fs1)
-
