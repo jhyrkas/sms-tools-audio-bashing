@@ -150,7 +150,7 @@ class AnalyzedAudio :
         self.frame_count = freqs.shape[0]
         amps = np.power(10, mags/20)
         
-        tracks = np.zeros(freqs.shape)
+        tracks = np.zeros(freqs.shape, dtype=int)
         trackid = 1
         in_track = False
         for j in range(n_sines) :
@@ -226,9 +226,9 @@ if len(sys.argv) < 3 :
 audiofile1 = sys.argv[1]
 audiofile2 = sys.argv[2]
 n_sines = 10 if len(sys.argv) < 4 else int(sys.argv[3])
-min_freq = 10.0 if len(sys.argv) < 5 else float(sys.argv[3])
-max_freq = 30.0 if len(sys.argv) < 6 else float(sys.argv[4])
-new_delta = 3.0 if len(sys.argv) < 7 else float(sys.argv[5])
+min_freq = 10.0 if len(sys.argv) < 5 else float(sys.argv[4])
+max_freq = 30.0 if len(sys.argv) < 6 else float(sys.argv[5])
+new_delta = 3.0 if len(sys.argv) < 7 else float(sys.argv[6])
 
 s1,fs1 = sf.read(audiofile1)
 s2,fs2 = sf.read(audiofile2)
@@ -236,8 +236,14 @@ analysis1 = AnalyzedAudio(s1,fs1,n_sines)
 analysis2 = AnalyzedAudio(s2,fs2,n_sines)
 
 partial_overlap_dict = analysis1.find_areas_of_roughness(analysis2, min_freq, max_freq)
+for key in partial_overlap_dict.keys() :
+    t_id1, t_id2 = key
+    track1 = analysis1.tracks[t_id1]
+    track2 = analysis2.tracks[t_id2]
+    print(track1.get_avg_freq())
+    print(track2.get_avg_freq())
 threshold_r = 1.0e-5 # roughness
-threshold_f = 10 # time in frames (100 ms)
+threshold_f = 10 # time in frames (100 ms) TODO: change
 
 track1_filters = []
 track2_filters = []
@@ -345,3 +351,4 @@ for i in range(len(track2_sin_params)) :
     #plt.show()
 
 sf.write('bashed.wav', out_bashed, fs1)
+
