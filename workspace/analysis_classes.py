@@ -1,7 +1,6 @@
 import numpy as np
 import os
 import scipy.signal
-import soundfile as sf
 import sys
 
 from roughness_and_criteria_functions import *
@@ -24,8 +23,9 @@ class TrackSnippet :
         pass
 
 class Track :
-    def __init__(self, audiofile, track_id, hop_len_s) :
+    def __init__(self, audiofile, fs, track_id, hop_len_s) :
         self.audiofile = audiofile
+        self.fs = fs
         self.track_id = track_id
         self.freqs = []
         self.amps = []
@@ -48,6 +48,8 @@ class Track :
             self.frame_count = 1
             self.start_time = snippet.frame.start_time
             self.end_time = snippet.frame.end_time
+            self.adj_start_time = self.start_time + 2*self.hop_len_s
+            self.adj_end_time = self.end_time + 2*self.hop_len_s
         else :
             self.min_freq = min(self.min_freq, snippet.freq)
             self.max_freq = max(self.max_freq, snippet.freq)
@@ -84,13 +86,12 @@ class Track :
 
     # TODO: more variables in the future? fs? extend length? 
     def get_interpolated_f0s(self) :
-        fs = 48000 # TODO: might need this to be variable in the future
+        track_len = self.end_time - self.start_time
         frame_s = self.hop_len_s
-        f0s = np.zeros(int((self.end_time + frame_s) * fs))
-        n = int(round((self.end_time - self.start_time)/frame_s))
-        start_samp = int(self.start_time*fs)
-        f0s[:start_samp] = self.freqs[0]
-        frame_samp = int(frame_s * fs)
+        f0s = np.zeros(int((track_len + frame_s) * self.fs))
+        n = int(round((track_len)/frame_s))
+        start_samp = 0 # ?
+        frame_samp = int(frame_s * self.fs)
         for i in range(n-1) :
             start = start_samp + i*frame_samp
             f0s[start:start+frame_samp+1] = np.linspace(self.freqs[i],self.freqs[i+1],frame_samp+1)
@@ -99,18 +100,16 @@ class Track :
  
     # TODO: more variables in the future? fs? extend length? fade in?
     def get_interpolated_amps(self) :
-        fs = 48000 # TODO: might need this to be variable in the future
+        track_len = self.end_time - self.start_time
         frame_s = self.hop_len_s
-        amps = np.zeros(int((self.end_time + frame_s) * fs))
-        n = int(round((self.end_time - self.start_time)/frame_s))
-        start_samp = int(self.start_time*fs)
-        frame_samp = int(frame_s * fs)
-        first_frame_len = min(start_samp, frame_samp) # in case this sinusoid starts in the first frame
-        amps[start_samp-first_frame_len:start_samp+1] = np.linspace(0.0,self.amps[0],first_frame_len+1)
+        amps = np.zeros(int((track_len + frame_s) * self.fs))
+        n = int(round((track_len)/frame_s))
+        start_samp = 0 # ?
+        frame_samp = int(frame_s * self.fs)
         for i in range(n-1) :
             start = start_samp + i*frame_samp
             amps[start:start+frame_samp+1] = np.linspace(self.amps[i],self.amps[i+1],frame_samp+1)
-        amps[start_samp+(n-1)*frame_samp:start_samp+n*frame_samp] = np.linspace(self.amps[-1],0.0,frame_samp)
+        amps[start_samp+(n-1)*frame_samp:] = self.amps[-1]
         return amps
 
 class Frame :
@@ -174,7 +173,7 @@ class AnalyzedAudio :
         for frame in self.frames :
             for snippet in frame.track_snippets :
                 if snippet.track_id not in self.tracks :
-                    self.tracks[snippet.track_id] = Track(self, snippet.track_id, self.hop_len_s)
+                    self.tracks[snippet.track_id] = Track(self, self.fs, snippet.track_id, self.hop_len_s)
                 self.tracks[snippet.track_id].add_frame(snippet)
 
     # TODO: consider how this is structured / what should be stored

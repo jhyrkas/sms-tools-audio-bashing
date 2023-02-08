@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import resampy
 import scipy.signal
 import soundfile as sf
 import sys
@@ -18,13 +19,23 @@ n_sines = 10 if len(sys.argv) < 4 else int(sys.argv[3])
 # TODO: consider what delta should be...
 new_delta = 3.0 if len(sys.argv) < 5 else float(sys.argv[4])
 
+intended_fs = 48000
 s1,fs1 = sf.read(audiofile1)
 s2,fs2 = sf.read(audiofile2)
-analysis1 = AnalyzedAudio(s1,fs1,n_sines)
-analysis2 = AnalyzedAudio(s2,fs2,n_sines)
+if len(s1.shape) > 1 :
+    s1 = (s1[:,0] + s1[:,1]) * 0.5
+if len(s2.shape) > 1 :
+    s2 = (s2[:,0] + s2[:,1]) * 0.5
+if fs1 != intended_fs :
+    s1 = resampy.core.resample(s1,fs1,intended_fs)
+if fs2 != intended_fs :
+    s2 = resampy.core.resample(s2,fs2,intended_fs)
+analysis1 = AnalyzedAudio(s1,intended_fs,n_sines)
+analysis2 = AnalyzedAudio(s2,intended_fs,n_sines)
 
 overlap_dict = analysis1.calculate_roughness_overlap(analysis2, roughness_function=calculate_roughness_vassilakis, criteria_function=criteria_critical_band_barks)
 threshold_r = 1.0e-2 # roughness
+threshold_r_std = 0.005
 threshold_f = 10 # time in frames (100 ms) TODO: change
 
 track1_filters = []
@@ -42,8 +53,9 @@ for key in overlap_dict.keys() :
 
     roughnesses, start_frame, end_frame = overlap_dict[key]
     roughness = np.mean(roughnesses)
+    roughness_std = np.std(roughnesses)
     overlap_length = end_frame - start_frame
-    if roughness > threshold_r and overlap_length >= threshold_f: # TODO: better
+    if roughness > threshold_r and roughness_std < threshold_r_std and overlap_length >= threshold_f: # TODO: better
         filter_track1 = track1.get_avg_amp() < track2.get_avg_amp()
         if filter_track1 :
             w0 = track1.get_avg_freq()
@@ -89,15 +101,14 @@ for key in overlap_dict.keys() :
 filts1 = np.array(track1_filters)
 filts2 = np.array(track2_filters)
 
-s1,fs1 = sf.read(audiofile1)
-s2,fs2 = sf.read(audiofile2)
+
 s1 *= 0.5
 s2 *= 0.5
 
 out_vanilla = np.zeros(max(s1.shape[0],s2.shape[0]))
 out_vanilla[:s1.shape[0]] += s1
 out_vanilla[:s2.shape[0]] += s2
-sf.write('vanilla.wav', out_vanilla, fs1)
+sf.write('vanilla.wav', out_vanilla, intended_fs)
 
 s1_filt = scipy.signal.sosfiltfilt(filts1,s1) if len(filts1.shape) > 1 else s1
 s2_filt = scipy.signal.sosfiltfilt(filts2,s2) if len(filts2.shape) > 1 else s2
@@ -109,29 +120,31 @@ s2_filt = scipy.signal.sosfiltfilt(filts2,s2) if len(filts2.shape) > 1 else s2
 out_filt = np.zeros(max(s1_filt.shape[0],s2_filt.shape[0]))
 out_filt[:s1_filt.shape[0]] += s1_filt
 out_filt[:s2_filt.shape[0]] += s2_filt
-sf.write('filtered.wav', out_filt, fs2)
+sf.write('filtered.wav', out_filt, intended_fs)
 
 out_bashed = out_filt.copy()
 for i in range(len(track1_sin_params)) :
     f0s = track1_sin_params[i].get_interpolated_f0s() + track1_sin_deltas[i]
-    cumphase = np.cumsum(f0s / fs1)
+    cumphase = np.cumsum(f0s / intended_fs)
     amps = track1_sin_params[i].get_interpolated_amps()
     new_sin = np.sin(2*np.pi*cumphase) * amps
-    limit = min(out_bashed.shape[0], new_sin.shape[0])
-    out_bashed[:limit] += new_sin[:limit]
-    #sf.write('track1_sin{i}.wav'.format(i=i), new_sin, fs1)
+    track_start = int(fs*track1_sin_params[i].adj_start_time)
+    limit = min(out_bashed.shape[0], new_sin.shape[0]+track_start)
+    out_bashed[track_start:limit] += new_sin[:limit-track_start]
+    #sf.write('track1_sin{i}.wav'.format(i=i), new_sin, intended_fs)
     #plt.plot(f0s)
     #plt.show()
 
 for i in range(len(track2_sin_params)) :
     f0s = track2_sin_params[i].get_interpolated_f0s() + track2_sin_deltas[i]
-    cumphase = np.cumsum(f0s / fs1)
+    cumphase = np.cumsum(f0s / intended_fs)
     amps = track2_sin_params[i].get_interpolated_amps()
     new_sin = np.sin(2*np.pi*cumphase) * amps
-    limit = min(out_bashed.shape[0], new_sin.shape[0])
-    out_bashed[:limit] += new_sin[:limit]
-    #sf.write('track2_sin{i}.wav'.format(i=i), new_sin, fs1)
+    track_start = int(fs*track2_sin_params[i].adj_start_time)
+    limit = min(out_bashed.shape[0], new_sin.shape[0]+track_start)
+    out_bashed[track_start:limit] += new_sin[:limit-track_start]
+    #sf.write('track2_sin{i}.wav'.format(i=i), new_sin, intended_fs)
     #plt.plot(f0s)
     #plt.show()
 
-sf.write('bashed.wav', out_bashed, fs1)
+sf.write('bashed.wav', out_bashed, intended_fs)
