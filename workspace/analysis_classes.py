@@ -33,6 +33,7 @@ class Track :
         self.start_time = 0
         self.end_time = 0
         self.hop_len_s = hop_len_s
+        self.filtered = False
 
     def add_frame(self, snippet) :
         # maybe we can just keep them all?
@@ -123,7 +124,8 @@ class Frame :
             self.track_snippets.append(TrackSnippet(self, i, f, a))
 
 class AnalyzedAudio :
-    def __init__(self, s, fs, n_sines) :
+    def __init__(self, file_id, s, fs, n_sines) :
+        self.file_id = file_id
         self.fs = fs
         self.n_sines = n_sines
         self.frames = []
@@ -177,7 +179,7 @@ class AnalyzedAudio :
                 self.tracks[snippet.track_id].add_frame(snippet)
 
     # TODO: consider how this is structured / what should be stored
-    def calculate_roughness_overlap(self, other_audio, criteria_function = criteria_func_pass, roughness_function = calculate_roughness_setheras) :
+    def calculate_roughness_overlap(self, other_audio, criteria_function = criteria_func_pass, roughness_function = calculate_roughness_sethares) :
         frame_min = min(self.frame_count, other_audio.frame_count)
         overlap_dict = {}
         for i in range(frame_min) :

@@ -2,7 +2,7 @@ import numpy as np
 
 # equation from Sethares (various papers)
 # could use updated equation from Vassilakis 2007
-def calculate_roughness_setheras(f1,v1,f2,v2) :
+def calculate_roughness_sethares(f1,v1,f2,v2) :
     a = -3.5
     b = -5.75
     d = 0.24

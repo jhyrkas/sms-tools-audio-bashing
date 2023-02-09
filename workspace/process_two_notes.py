@@ -30,10 +30,12 @@ if fs1 != intended_fs :
     s1 = resampy.core.resample(s1,fs1,intended_fs)
 if fs2 != intended_fs :
     s2 = resampy.core.resample(s2,fs2,intended_fs)
-analysis1 = AnalyzedAudio(s1,intended_fs,n_sines)
-analysis2 = AnalyzedAudio(s2,intended_fs,n_sines)
+analysis1 = AnalyzedAudio(1,s1,intended_fs,n_sines)
+analysis2 = AnalyzedAudio(2,s2,intended_fs,n_sines)
 
 overlap_dict = analysis1.calculate_roughness_overlap(analysis2, roughness_function=calculate_roughness_vassilakis, criteria_function=criteria_critical_band_barks)
+#overlap_dict = analysis1.calculate_roughness_overlap(analysis2, roughness_function=calculate_roughness_vassilakis)
+#overlap_dict = analysis1.calculate_roughness_overlap(analysis2)
 threshold_r = 1.0e-2 # roughness
 threshold_r_std = 0.005
 threshold_f = 10 # time in frames (100 ms) TODO: change
@@ -46,62 +48,72 @@ track1_sin_deltas = []
 track2_sin_deltas = []
 track1_sin_filts = []
 track2_sin_filts = []
+
+# trying a different structure
+filter_candidates = []
 for key in overlap_dict.keys() :
     t_id1, t_id2 = key
     track1 = analysis1.tracks[t_id1]
     track2 = analysis2.tracks[t_id2]
-
     roughnesses, start_frame, end_frame = overlap_dict[key]
     roughness = np.mean(roughnesses)
     roughness_std = np.std(roughnesses)
     overlap_length = end_frame - start_frame
-    if roughness > threshold_r and roughness_std < threshold_r_std and overlap_length >= threshold_f: # TODO: better
-        filter_track1 = track1.get_avg_amp() < track2.get_avg_amp()
-        if filter_track1 :
-            w0 = track1.get_avg_freq()
-            bw = max(track1.get_max_freq() - track1.get_avg_freq(), track1.get_avg_freq() - track1.get_min_freq())
-            Q = min(w0/bw,100) # TODO: do this better
-            fs = 48000 # TODO: better
-            b,a = scipy.signal.iirnotch(w0,Q,fs)
-            track1_filters.append(np.hstack((b,a)))
-            print('TRACK 1: filtering frequency {f} with Q {Q}, registered roughness {r: .5f} for {i} frames'.format(f=w0,Q=Q,r=roughness,i=overlap_length))
-            print(b)
-            print(a)
-            
-            new_f = track2.get_avg_freq() - new_delta if track2.get_avg_freq() > track1.get_avg_freq() else track2.get_avg_freq() + new_delta
-            b,a = scipy.signal.iirpeak(w0,Q,fs)
-            track1_sin_params.append(track1)
-            track1_sin_filts.append(np.hstack((b,a)))
-            track1_sin_deltas.append(new_f-w0)
-            print('TRACK 1: adding frequency {f}'.format(f=new_f))
-            print(b)
-            print(a)
-            print()
-        else :
-            w0 = track2.get_avg_freq()
-            bw = max(track2.get_max_freq() - track2.get_avg_freq(), track2.get_avg_freq() - track2.get_min_freq())
-            Q = min(w0/bw,100) # TODO: do this better
-            fs = 48000 # TODO: better
-            b,a = scipy.signal.iirnotch(w0,Q,fs)
-            track2_filters.append(np.hstack((b,a)))
-            print('TRACK 2: filtering frequency {f} with Q {Q}, registered roughness {r: .5f} for {i} frames'.format(f=w0,Q=Q,r=roughness,i=overlap_length))
-            print(b)
-            print(a)
+    if roughness > threshold_r and overlap_length >= threshold_f: # TODO: better
+    #if roughness > threshold_r and roughness_std < threshold_r_std and overlap_length >= threshold_f: # TODO: better
+        filter_candidates.append((roughness, t_id1, t_id2, track1, track2))
 
-            new_f = track1.get_avg_freq() - new_delta if track1.get_avg_freq() > track2.get_avg_freq() else track1.get_avg_freq() + new_delta
-            b,a = scipy.signal.iirpeak(w0,Q,fs)
-            track2_sin_params.append(track2)
-            track2_sin_filts.append(np.hstack((b,a)))
-            track2_sin_deltas.append(new_f-w0)
-            print('TRACK 2: adding frequency {f}'.format(f=new_f))
-            print(b)
-            print(a)
-            print()
+filter_candidates.sort(reverse = True)
+
+for roughness,id1,id2,track1,track2 in filter_candidates :
+    filter_track1 = track1.get_avg_amp() < track2.get_avg_amp()
+    if filter_track1 and not track1.filtered :
+        w0 = track1.get_avg_freq()
+        bw = max(track1.get_max_freq() - track1.get_avg_freq(), track1.get_avg_freq() - track1.get_min_freq())
+        Q = min(w0/bw,100) # TODO: do this better
+        fs = 48000 # TODO: better
+        b,a = scipy.signal.iirnotch(w0,Q,fs)
+        track1_filters.append(np.hstack((b,a)))
+        print('TRACK 1: filtering frequency {f} with Q {Q}, registered roughness {r: .5f}'.format(f=w0,Q=Q,r=roughness))
+        print(b)
+        print(a)
+            
+        new_f = track2.get_avg_freq() - new_delta if track2.get_avg_freq() > track1.get_avg_freq() else track2.get_avg_freq() + new_delta
+        b,a = scipy.signal.iirpeak(w0,Q,fs)
+        track1_sin_params.append(track1)
+        track1_sin_filts.append(np.hstack((b,a)))
+        track1_sin_deltas.append(new_f-w0)
+        print('TRACK 1: adding frequency {f}'.format(f=new_f))
+        print(b)
+        print(a)
+        print()
+        track1.filtered = True
+    elif not filter_track1 and not track2.filtered :
+        w0 = track2.get_avg_freq()
+        bw = max(track2.get_max_freq() - track2.get_avg_freq(), track2.get_avg_freq() - track2.get_min_freq())
+        Q = min(w0/bw,100) # TODO: do this better
+        fs = 48000 # TODO: better
+        b,a = scipy.signal.iirnotch(w0,Q,fs)
+        track2_filters.append(np.hstack((b,a)))
+        print('TRACK 2: filtering frequency {f} with Q {Q}, registered roughness {r: .5f}'.format(f=w0,Q=Q,r=roughness))
+        print(b)
+        print(a)
+
+        new_f = track1.get_avg_freq() - new_delta if track1.get_avg_freq() > track2.get_avg_freq() else track1.get_avg_freq() + new_delta
+        b,a = scipy.signal.iirpeak(w0,Q,fs)
+        track2_sin_params.append(track2)
+        track2_sin_filts.append(np.hstack((b,a)))
+        track2_sin_deltas.append(new_f-w0)
+        print('TRACK 2: adding frequency {f}'.format(f=new_f))
+        print(b)
+        print(a)
+        print()
+        track2.filtered = True
 
 filts1 = np.array(track1_filters)
 filts2 = np.array(track2_filters)
 
-
+# trying to avoid clipping
 s1 *= 0.5
 s2 *= 0.5
 
