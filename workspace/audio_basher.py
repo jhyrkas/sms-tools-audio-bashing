@@ -1,3 +1,4 @@
+import argparse
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -19,6 +20,17 @@ def merge_overlaps(list_so_far, overlap_dict, analysis1, analysis2, threshold_r,
         overlap_length = end_frame - start_frame
         if roughness > threshold_r and overlap_length >= threshold_f: # TODO: better
             list_so_far.append((roughness, track1, track2))
+
+parser = argparse.ArgumentParser(
+    prog = 'audiobasher.py', 
+    description = 'Whacks (attenuates) and bashes (frequency shifts) harmonics of sound files so they have lower auditory roughness when mixed together'
+)
+
+parser.add_argument('audio_files', action='store', type=str, nargs='+', help='the list of files to process')
+parser.add_argument('-nsines', dest='n_sines', action='store', type=int, default=10, help='The number of sinusoids to fit to each audio file')
+parser.add_argument('-delta', dest='delta', action='store', type=float, default=3., help='The frequency difference of bashed sinusoids and their neighor (please see the paper)')
+parser.add_argument('-normalize', dest='normalize', action='store', type=bool, default=False, help='Normalizes audio files to have the same maximum peak sample (only use if audio levels are not already determined)')
+
 
 if len(sys.argv) < 3 :
     print('usage: python3 process_three_notes.py <audiofile1> <audiofile2> <audiofile3> [optional-nsines] [optional-new-delta] [optional-normalize]')

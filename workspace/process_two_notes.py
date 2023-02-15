@@ -84,8 +84,6 @@ for roughness,id1,id2,track1,track2 in filter_candidates :
         track1_sin_filts.append(np.hstack((b,a)))
         track1_sin_deltas.append(new_f-w0)
         print('TRACK 1: adding frequency {f}'.format(f=new_f))
-        print(b)
-        print(a)
         print()
         track1.filtered = True
     elif not filter_track1 and not track2.filtered :
@@ -105,8 +103,6 @@ for roughness,id1,id2,track1,track2 in filter_candidates :
         track2_sin_filts.append(np.hstack((b,a)))
         track2_sin_deltas.append(new_f-w0)
         print('TRACK 2: adding frequency {f}'.format(f=new_f))
-        print(b)
-        print(a)
         print()
         track2.filtered = True
 
