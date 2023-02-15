@@ -37,7 +37,7 @@ args = parser.parse_args()
 
 audio_files = args.audio_files
 nfiles = len(audio_files)
-n_sines = args.nsines
+n_sines = args.n_sines
 new_delta = args.delta
 normalize = args.normalize
 
@@ -57,6 +57,7 @@ for i in range(nfiles) :
         s = s / np.max(np.abs(s))
     sigs[i] = s
     analyses[i] = AnalyzedAudio(i,s,intended_fs,n_sines)
+    sigs[i] = sigs[i] * (1/nfiles) # trying to avoid clipping...do it after analysis though
 
 # --- FINDING AREAS OF ROUGHNESS
 
@@ -91,7 +92,7 @@ for roughness,track1,track2 in filter_candidates :
     unfiltered_track = None
     if filter_track1 and not track1.filtered :
         filtered_track = track1
-        unfiltered_track = track1
+        unfiltered_track = track2
         track1.filtered = True
     elif not filter_track1 and not track2.filtered :
         filtered_track = track2
@@ -108,7 +109,7 @@ for roughness,track1,track2 in filter_candidates :
     audio_id = filtered_track.audiofile.file_id
     filters[audio_id].append(np.hstack((b,a)))
             
-    new_f = unfiltered_track.get_avg_freq() - new_delta if unfiltered_track.get_avg_freq() > filtered_track.get_avg_freq() else filtered_track.get_avg_freq() + new_delta
+    new_f = unfiltered_track.get_avg_freq() - new_delta if unfiltered_track.get_avg_freq() > filtered_track.get_avg_freq() else unfiltered_track.get_avg_freq() + new_delta
     b,a = scipy.signal.iirpeak(w0,Q,fs)
     sin_params[audio_id].append(filtered_track)
     sin_filts[audio_id].append(np.hstack((b,a)))
@@ -120,7 +121,7 @@ for roughness,track1,track2 in filter_candidates :
 
 out_vanilla = np.zeros(np.max([sigs[i].shape[0] for i in range(nfiles)]))
 for i in range(nfiles) :
-    out_vanilla[:sigs[i].shape[0]] += sigs[i] * (1/nfiles) # avoiding clipping
+    out_vanilla[:sigs[i].shape[0]] += sigs[i]
 sf.write('vanilla.wav', out_vanilla, intended_fs)
 
 filt_sigs = [None] * nfiles
@@ -131,20 +132,25 @@ for i in range(nfiles) :
 
 out_filt = np.zeros(np.max([filt_sigs[i].shape[0] for i in range(nfiles)]))
 for i in range(nfiles) :
-    out_filt[:filt_sigs[i].shape[0]] += filt_sigs[i] * (1/nfiles) # avoiding clipping
+    out_filt[:filt_sigs[i].shape[0]] += filt_sigs[i]
 sf.write('filtered.wav', out_filt, intended_fs)
 
+tmp_index = 0
 out_bashed = out_filt.copy()
 for i in range(nfiles) :
     for j in range(len(sin_filts[i])) :
-        filt_sig = scipy.signal.sosfiltfilt(sin_filts[i][j], sigs[i])
+        peak_sig = scipy.signal.sosfiltfilt(sin_filts[i][j], sigs[i])
         delta = sin_deltas[i][j]
         delta_abs = np.abs(delta)
-        mod_sig = np.cos(2*np.pi*np.arange(s_filt.shape[0])*delta_abs/intended_fs)
-        s_hil = scipy.signal.hilbert(s_filt).imag
+        mod_sig = np.cos(2*np.pi*np.arange(peak_sig.shape[0])*delta_abs/intended_fs)
+        s_hil = scipy.signal.hilbert(peak_sig).imag
         m_hil = scipy.signal.hilbert(mod_sig).imag
         sign = 1 if delta < 0 else -1
-        shifted_sig = filt_sig*mod_sig + (sign*s_hil*m_hil)
+        shifted_sig = peak_sig*mod_sig + (sign*s_hil*m_hil)
+        shifted_sig = (shifted_sig / np.max(np.abs(shifted_sig))) * np.max(np.abs(peak_sig))
         out_bashed[:shifted_sig.shape[0]] += shifted_sig
+        #sf.write('tmp{i}_pre.wav'.format(i=tmp_index), peak_sig/np.max(np.abs(peak_sig)), intended_fs)
+        #sf.write('tmp{i}_post.wav'.format(i=tmp_index), shifted_sig/np.max(np.abs(shifted_sig)), intended_fs)
+        tmp_index += 1
 
 sf.write('bashed.wav', out_bashed, intended_fs)
