@@ -121,6 +121,9 @@ for roughness,track1,track2 in filter_candidates :
 filts1 = np.array(filters[0])
 filts2 = np.array(filters[1])
 filts3 = np.array(filters[2])
+print(filts1.shape)
+print(filts2.shape)
+print(filts3.shape)
 
 # trying to avoid clipping
 s1 *= 0.33
