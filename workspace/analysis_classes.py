@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import scipy.signal
+import soundfile as sf
 import sys
 
 from roughness_and_criteria_functions import *
@@ -142,6 +143,8 @@ class AnalyzedAudio :
         min_dur = 1.5 * self.hop_len_s
         
         freqs, mags, phases = sm.sineModelAnal(s, fs, w, N, H, t, n_sines, min_dur)
+        rec = sm.sineModelSynth(freqs, mags, phases, N, H, fs)
+        sf.write('recreation{i}.wav'.format(i=file_id), rec, fs)
         self.frame_count = freqs.shape[0]
         amps = np.power(10, mags/20)
         
