@@ -33,9 +33,9 @@ if fs2 != intended_fs :
 analysis1 = AnalyzedAudio(1,s1,intended_fs,n_sines)
 analysis2 = AnalyzedAudio(2,s2,intended_fs,n_sines)
 
-overlap_dict = analysis1.calculate_roughness_overlap(analysis2, roughness_function=calculate_roughness_vassilakis, criteria_function=criteria_critical_band_barks)
-#overlap_dict = analysis1.calculate_roughness_overlap(analysis2, roughness_function=calculate_roughness_vassilakis)
-#overlap_dict = analysis1.calculate_roughness_overlap(analysis2)
+overlap_dict = analysis1.calculate_roughness_overlap_frames(analysis2, roughness_function=calculate_roughness_vassilakis, criteria_function=criteria_critical_band_barks)
+#overlap_dict = analysis1.calculate_roughness_overlap_frames(analysis2, roughness_function=calculate_roughness_vassilakis)
+#overlap_dict = analysis1.calculate_roughness_overlap_frames(analysis2)
 threshold_r = 1.0e-2 # roughness
 threshold_r_std = 0.005
 threshold_f = 10 # time in frames (100 ms) TODO: change

@@ -68,7 +68,7 @@ c_func = criteria_critical_band_barks
 
 threshold_f = 10 # time in frames (100 ms) TODO: change
 
-overlap_dict12 = analysis1.calculate_roughness_overlap(analysis2, roughness_function=r_func, criteria_function=c_func)
+overlap_dict12 = analysis1.calculate_roughness_overlap_frames(analysis2, roughness_function=r_func, criteria_function=c_func)
 overlap_dict13 = analysis1.calculate_roughness_overlap(analysis3, roughness_function=r_func, criteria_function=c_func)
 overlap_dict23 = analysis2.calculate_roughness_overlap(analysis3, roughness_function=r_func, criteria_function=c_func)
 

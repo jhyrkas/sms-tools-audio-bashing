@@ -30,7 +30,7 @@ parser = argparse.ArgumentParser(
 
 parser.add_argument('audio_files', action='store', type=str, nargs='+', help='the list of files to process')
 parser.add_argument('-nsines', dest='n_sines', action='store', type=int, default=10, help='The number of sinusoids to fit to each audio file')
-parser.add_argument('-delta', dest='delta', action='store', type=float, default=3., help='The frequency difference of bashed sinusoids and their neighor (please see the paper)')
+parser.add_argument('-delta', dest='delta', action='store', type=float, default=3., help='The frequency difference of bashed sinusoids and their neighbor (please see the paper)')
 parser.add_argument('-normalize', dest='normalize', action='store', type=bool, default=False, help='Normalizes audio files to have the same maximum peak sample (only use if audio levels are not already determined)')
 
 args = parser.parse_args()
@@ -76,7 +76,8 @@ threshold_f = 10 # time in frames (100 ms) TODO: arg parse?
 filter_candidates = []
 for i in range(nfiles-1) :
     for j in range(i+1, nfiles) :
-        overlap_dict = analyses[i].calculate_roughness_overlap(analyses[j], roughness_function=r_func, criteria_function=c_func)
+        #overlap_dict = analyses[i].calculate_roughness_overlap_frames(analyses[j], criteria_function=c_func, roughness_function=r_func)
+        overlap_dict = analyses[i].calculate_roughness_overlap_tracks(analyses[j], criteria_function=c_func, roughness_function=r_func)
         merge_overlaps(filter_candidates, overlap_dict, analyses[i], analyses[j], threshold_r, threshold_f)
 
 filter_candidates = sorted(filter_candidates, key=lambda x: x[0], reverse=True)
@@ -101,6 +102,10 @@ for roughness,track1,track2 in filter_candidates :
     else :
         # skip this pair
         continue
+    print('CLASHING FREQUENCIES: {f1_min:.2f},{f1_avg:.2f},{f1_max:.2f}\t{f2_min:.2f},{f2_avg:.2f},{f2_max:.2f}'.format(
+        f1_min=track1.get_min_freq(), f1_avg=track1.get_avg_freq(), f1_max=track1.get_max_freq(),
+        f2_min=track2.get_min_freq(), f2_avg=track2.get_avg_freq(), f2_max=track2.get_max_freq()
+        ))
     w0 = filtered_track.get_avg_freq()
     bw = max(filtered_track.get_max_freq() - filtered_track.get_avg_freq(), filtered_track.get_avg_freq() - filtered_track.get_min_freq())
     Q = min(w0/bw,100) # TODO: do this better

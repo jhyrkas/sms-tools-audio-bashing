@@ -48,5 +48,8 @@ def criteria_critical_band_barks(f1,v1,f2,v2) :
     bandwidth1 = bark_cutoffs[bark_f1+1] - bark_cutoffs[bark_f1]
     bandwidth2 = bark_cutoffs[bark_f2+1] - bark_cutoffs[bark_f2]
     avg_bandwidth = (bandwidth1+bandwidth2)*0.5
-    bw_percent = 0.33 # TODO: parameterize? rationalize?
-    return abs(f1-f2) < (bw_percent*avg_bandwidth)
+    # one justification: plomp and levelt 1965
+    bw_percent_high = 0.33 # TODO: parameterize? rationalize?
+    bw_percent_low = 0.05 # TODO: parameterize? rationalize?
+    diff = abs(f1-f2)
+    return diff < (bw_percent_high*avg_bandwidth) and diff > (bw_percent_low*avg_bandwidth)

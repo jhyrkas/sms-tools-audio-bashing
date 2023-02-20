@@ -5,6 +5,7 @@ import soundfile as sf
 import sys
 
 from roughness_and_criteria_functions import *
+from scipy.stats import gmean # geometric mean
 
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '../software/models/'))
 try :
@@ -63,7 +64,8 @@ class Track :
             self.end_time = snippet.frame.end_time
 
     def get_avg_freq(self) :
-        return np.mean(np.array(self.freqs))
+        #return np.mean(np.array(self.freqs))
+        return gmean(np.array(self.freqs))
     
     def get_std_freq(self) :
         return np.std(np.array(self.freqs))
@@ -143,8 +145,8 @@ class AnalyzedAudio :
         min_dur = 1.5 * self.hop_len_s
         
         freqs, mags, phases = sm.sineModelAnal(s, fs, w, N, H, t, n_sines, min_dur)
-        rec = sm.sineModelSynth(freqs, mags, phases, N, H, fs)
-        sf.write('recreation{i}.wav'.format(i=file_id), rec, fs)
+        #rec = sm.sineModelSynth(freqs, mags, phases, N, H, fs)
+        #sf.write('recreation{i}.wav'.format(i=file_id), rec, fs)
         self.frame_count = freqs.shape[0]
         amps = np.power(10, mags/20)
         
@@ -182,7 +184,7 @@ class AnalyzedAudio :
                 self.tracks[snippet.track_id].add_frame(snippet)
 
     # TODO: consider how this is structured / what should be stored
-    def calculate_roughness_overlap(self, other_audio, criteria_function = criteria_func_pass, roughness_function = calculate_roughness_sethares) :
+    def calculate_roughness_overlap_frames(self, other_audio, criteria_function = criteria_func_pass, roughness_function = calculate_roughness_sethares) :
         frame_min = min(self.frame_count, other_audio.frame_count)
         overlap_dict = {}
         for i in range(frame_min) :
@@ -204,3 +206,25 @@ class AnalyzedAudio :
                             overlap_dict[partial_pair][0].append(r)
                             overlap_dict[partial_pair] = (overlap_dict[partial_pair][0], overlap_dict[partial_pair][1],i+1)
         return overlap_dict
+
+    def calculate_roughness_overlap_tracks(self, other_audio, criteria_function = criteria_func_pass, roughness_function = calculate_roughness_sethares) :
+        overlap_dict = {}
+        this_track_keys = self.tracks.keys()
+        that_track_keys = other_audio.tracks.keys()
+
+        for k1 in this_track_keys :
+            this_track = self.tracks[k1]
+            for k2 in that_track_keys :
+                that_track = other_audio.tracks[k2]
+                freq_clash = criteria_function(this_track.get_avg_freq(), this_track.get_avg_amp(), that_track.get_avg_freq(), that_track.get_avg_amp())
+                t1 = this_track.get_track_times()
+                t2 = that_track.get_track_times()
+                time_overlap = t1[1] > t2[0] and t1[0] < t2[1]
+                if freq_clash and time_overlap :
+                    r = roughness_function(this_track.get_avg_freq(), this_track.get_avg_amp(), that_track.get_avg_freq(), that_track.get_avg_amp())
+                    first_frame = max(t1[0],t2[0]) // self.hop_len_s
+                    end_frame = min(t1[1],t2[1]) // self.hop_len_s
+                    overlap_dict[(k1,k2)] = (r,first_frame, end_frame - first_frame)
+
+        return overlap_dict
+
