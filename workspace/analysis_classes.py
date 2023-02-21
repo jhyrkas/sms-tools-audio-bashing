@@ -184,7 +184,7 @@ class AnalyzedAudio :
                 self.tracks[snippet.track_id].add_frame(snippet)
 
     # TODO: consider how this is structured / what should be stored
-    def calculate_roughness_overlap_frames(self, other_audio, criteria_function = criteria_func_pass, roughness_function = calculate_roughness_sethares) :
+    def calculate_roughness_overlap_frames(self, other_audio, criteria_function = criteria_func_pass, roughness_function = calculate_roughness_sethares, c_func_kargs={'bw_percent_low':0.1, 'bw_percent_high':0.33}) :
         frame_min = min(self.frame_count, other_audio.frame_count)
         overlap_dict = {}
         for i in range(frame_min) :
@@ -197,7 +197,7 @@ class AnalyzedAudio :
                 for k in range(that_frame.npar) :
                     this_partial = partials_this[j]
                     that_partial = partials_that[k]
-                    if criteria_function(this_partial.freq, this_partial.amp, that_partial.freq, that_partial.amp) :
+                    if criteria_function(this_partial.freq, this_partial.amp, that_partial.freq, that_partial.amp, **c_func_kargs) :
                         r = roughness_function(this_partial.freq, this_partial.amp, that_partial.freq, that_partial.amp)
                         partial_pair = (this_partial.track_id, that_partial.track_id)
                         if partial_pair not in overlap_dict :
@@ -207,7 +207,7 @@ class AnalyzedAudio :
                             overlap_dict[partial_pair] = (overlap_dict[partial_pair][0], overlap_dict[partial_pair][1],i+1)
         return overlap_dict
 
-    def calculate_roughness_overlap_tracks(self, other_audio, criteria_function = criteria_func_pass, roughness_function = calculate_roughness_sethares) :
+    def calculate_roughness_overlap_tracks(self, other_audio, criteria_function = criteria_func_pass, roughness_function = calculate_roughness_sethares, c_func_kargs={'bw_percent_low':0.1, 'bw_percent_high':0.33}) :
         overlap_dict = {}
         this_track_keys = self.tracks.keys()
         that_track_keys = other_audio.tracks.keys()
@@ -216,7 +216,7 @@ class AnalyzedAudio :
             this_track = self.tracks[k1]
             for k2 in that_track_keys :
                 that_track = other_audio.tracks[k2]
-                freq_clash = criteria_function(this_track.get_avg_freq(), this_track.get_avg_amp(), that_track.get_avg_freq(), that_track.get_avg_amp())
+                freq_clash = criteria_function(this_track.get_avg_freq(), this_track.get_avg_amp(), that_track.get_avg_freq(), that_track.get_avg_amp(), **c_func_kargs)
                 t1 = this_track.get_track_times()
                 t2 = that_track.get_track_times()
                 time_overlap = t1[1] > t2[0] and t1[0] < t2[1]

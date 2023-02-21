@@ -2,6 +2,11 @@ import numpy as np
 
 # equation from Sethares (various papers)
 # could use updated equation from Vassilakis 2007
+# notes:    this function models roughness as: r = e^(-3.5x) - e^(-5.75x), 
+#           where x is roughly the % distances in frequencies by critical
+#           bandwidth. the function peaks at around x=0.22 with value y=0.18.
+#           r is multiplied by the linear gain of both frequencies, so in practice
+#           it is much smaller than 0.18
 def calculate_roughness_sethares(f1,v1,f2,v2) :
     a = -3.5
     b = -5.75
@@ -13,6 +18,12 @@ def calculate_roughness_sethares(f1,v1,f2,v2) :
     return v1*v2*(np.exp(a*s*freq_diff) - np.exp(b*s*freq_diff))
 
 # equation from Vassilakis 2007
+# notes:    this equation scales sethares's equation above by relative amplitude and amplitude modulation.
+#           this X portion exponentiates the amplitude component by 0.1 make it closer to closer resemble dB
+#           or barks, as opposed to linear amplitude. the Y portion accounts for amplitudem modulation, a key
+#           component of roughness. if both sinusoids are near the same volume, there will be very noticeable
+#           amplitude modulation, but if one is much louder than the other there will be less modulation due
+#           to masking.
 def calculate_roughness_vassilakis(f1,v1,f2,v2) :
     X = (v1*v2)**0.1
     Y = 0.5 * ((2*min(v1,v2))/(v1+v2))**3.11
@@ -28,7 +39,7 @@ def calculate_roughness_vassilakis(f1,v1,f2,v2) :
 def criteria_func_pass(f1,v1,f2,v2) :
     return True
 
-def criteria_critical_band_barks(f1,v1,f2,v2) :
+def criteria_critical_band_barks(f1,v1,f2,v2, bw_percent_low=0.1, bw_percent_high = 0.35) :
     bark_cutoffs = [20, 100, 200, 300, 400, 510, 630, 770, 920, 1080, 1270, 1480,
                 1720, 2000, 2320, 2700, 3150, 3700, 4400, 5300, 6400, 7700,
                 9500, 12000, 15500]
@@ -48,8 +59,5 @@ def criteria_critical_band_barks(f1,v1,f2,v2) :
     bandwidth1 = bark_cutoffs[bark_f1+1] - bark_cutoffs[bark_f1]
     bandwidth2 = bark_cutoffs[bark_f2+1] - bark_cutoffs[bark_f2]
     avg_bandwidth = (bandwidth1+bandwidth2)*0.5
-    # one justification: plomp and levelt 1965
-    bw_percent_high = 0.33 # TODO: parameterize? rationalize?
-    bw_percent_low = 0.05 # TODO: parameterize? rationalize?
     diff = abs(f1-f2)
     return diff < (bw_percent_high*avg_bandwidth) and diff > (bw_percent_low*avg_bandwidth)
