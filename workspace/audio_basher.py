@@ -81,8 +81,8 @@ threshold_f = 10 # time in frames (100 ms) TODO: arg parse?
 filter_candidates = []
 for i in range(nfiles-1) :
     for j in range(i+1, nfiles) :
-        #overlap_dict = analyses[i].calculate_roughness_overlap_frames(analyses[j], criteria_function=c_func, roughness_function=r_func)
-        overlap_dict = analyses[i].calculate_roughness_overlap_tracks(analyses[j], criteria_function=c_func, roughness_function=r_func, c_func_kargs=c_func_dict)
+        overlap_dict = analyses[i].calculate_roughness_overlap_frames(analyses[j], criteria_function=c_func, roughness_function=r_func)
+        #overlap_dict = analyses[i].calculate_roughness_overlap_tracks(analyses[j], criteria_function=c_func, roughness_function=r_func, c_func_kargs=c_func_dict)
         merge_overlaps(filter_candidates, overlap_dict, analyses[i], analyses[j], threshold_r, threshold_f)
 
 filter_candidates = sorted(filter_candidates, key=lambda x: x[0], reverse=True)

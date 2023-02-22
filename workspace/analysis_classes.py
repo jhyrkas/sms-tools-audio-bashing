@@ -87,6 +87,10 @@ class Track :
 
     def get_track_times(self) :
         return self.start_time, self.end_time
+    
+    def get_adjusted_track_times(self) :
+        # TODO: be careful??
+        return self.start_time + (self.hop_len_s*2), self.end_time + (self.hop_len_s*2)
 
     # TODO: more variables in the future? fs? extend length? 
     def get_interpolated_f0s(self) :
@@ -217,14 +221,14 @@ class AnalyzedAudio :
             for k2 in that_track_keys :
                 that_track = other_audio.tracks[k2]
                 freq_clash = criteria_function(this_track.get_avg_freq(), this_track.get_avg_amp(), that_track.get_avg_freq(), that_track.get_avg_amp(), **c_func_kargs)
-                t1 = this_track.get_track_times()
-                t2 = that_track.get_track_times()
+                t1 = this_track.get_adjusted_track_times()
+                t2 = that_track.get_adjusted_track_times()
                 time_overlap = t1[1] > t2[0] and t1[0] < t2[1]
                 if freq_clash and time_overlap :
                     r = roughness_function(this_track.get_avg_freq(), this_track.get_avg_amp(), that_track.get_avg_freq(), that_track.get_avg_amp())
                     first_frame = max(t1[0],t2[0]) // self.hop_len_s
                     end_frame = min(t1[1],t2[1]) // self.hop_len_s
-                    overlap_dict[(k1,k2)] = (r,first_frame, end_frame - first_frame)
+                    overlap_dict[(k1,k2)] = (r,first_frame, end_frame)
 
         return overlap_dict
 
