@@ -8,19 +8,8 @@ import soundfile as sf
 import sys
 
 from analysis_classes import *
+from basher_utils import *
 from roughness_and_criteria_functions import *
-
-# TODO: should this go into a standalone file to keep this script clean?
-def merge_overlaps(list_so_far, overlap_dict, analysis1, analysis2, threshold_r, threshold_f) :
-    for key in overlap_dict.keys() :
-        t_id1, t_id2 = key
-        track1 = analysis1.tracks[t_id1]
-        track2 = analysis2.tracks[t_id2]
-        roughnesses, start_frame, end_frame = overlap_dict[key]
-        roughness = np.mean(roughnesses)
-        overlap_length = end_frame - start_frame
-        if roughness > threshold_r and overlap_length >= threshold_f: # TODO: better
-            list_so_far.append((roughness, track1, track2))
 
 # --- PARSING ARGUMENTS
 parser = argparse.ArgumentParser(
@@ -30,12 +19,17 @@ parser = argparse.ArgumentParser(
 
 parser.add_argument('audio_files', action='store', type=str, nargs='+', help='the list of files to process')
 parser.add_argument('-nsines', dest='n_sines', action='store', type=int, default=10, help='The number of sinusoids to fit to each audio file')
-parser.add_argument('-delta', dest='delta', action='store', type=float, default=3., help='The frequency difference of bashed sinusoids and their neighbor (please see the paper)')
-parser.add_argument('-normalize', dest='normalize', action='store', type=bool, default=False, help='Normalizes audio files to have the same maximum peak sample (only use if audio levels are not already determined)')
 parser.add_argument('-bw_percent_low', dest='bw_percent_low', action='store', type=float, default=0.1, help='Defines the low threshold of frequencies that can be adjusted. Specify as fraction of critical bandwidth (default 0.1, minimum 0.0, maximum < bw_percent_high')
 parser.add_argument('-bw_percent_high', dest='bw_percent_high', action='store', type=float, default=0.33, help='Defines the high threshold of frequencies that can be adjusted. Specify as fraction of critical bandwidth (default 0.33, minimum > bw_percent_low, maximum 1.0')
+parser.add_argument('--hard_bash', dest='hard_bash', action=argparse.BooleanOptionalAction, default=False, help='When hard bash is turned on (i.e. -hard_bash=True), frequency pairs that fall within the bandwidth range will have the quieter partial bashed directly to delta Hz above or below the louder partial, regardless of bandwidth implication. Otherwise, soft bash behavior is used (see "consonance" parameter).')
+parser.add_argument('--consonance', dest='consonance', action=argparse.BooleanOptionalAction, default=True, help='When soft bashing behavior is used (see "hard_bash" parameter), frequencie pairs that fall within the bandwidth with have the quieter partial moved within the bandwidth defined. If consonance is on, the most consonant frequency will be chosen; if consonance is off (False), the most dissonant freuqncy will be chosen. This algorithm is greedy and not necessarily optimal if moving the quieter frequency causes it to be moved within the range of another partial not previously analyzed.')
+parser.add_argument('-delta', dest='delta', action='store', type=float, default=3., help='The frequency difference of bashed sinusoids and their neighbor when hard bashing is enabled.')
+parser.add_argument('--normalize', dest='normalize', action=argparse.BooleanOptionalAction, default=False, help='Normalizes audio files to have the same maximum peak sample (only use if audio levels are not already determined)')
 
 args = parser.parse_args()
+print('ARGS PARSED')
+print(args)
+print()
 
 audio_files = args.audio_files
 nfiles = len(audio_files)
@@ -44,6 +38,8 @@ new_delta = args.delta
 normalize = args.normalize
 bw_percent_low = args.bw_percent_low
 bw_percent_high = args.bw_percent_high
+hard_bash = args.hard_bash
+consonance = args.consonance
 
 # --- ANALYZING FILES
 
@@ -119,8 +115,9 @@ for roughness,track1,track2 in filter_candidates :
     b,a = scipy.signal.iirnotch(w0,Q,fs)
     audio_id = filtered_track.audiofile.file_id
     notch_filts[audio_id].append((b,a))
-            
-    new_f = unfiltered_track.get_avg_freq() - new_delta if unfiltered_track.get_avg_freq() > filtered_track.get_avg_freq() else unfiltered_track.get_avg_freq() + new_delta
+    
+    new_f = bash_freq(filtered_track.get_avg_freq(), unfiltered_track.get_avg_freq(), bw_percent_low, bw_percent_high, hard_bash, new_delta, consonance)
+
     b,a = scipy.signal.iirpeak(w0,Q,fs)
     tracks[audio_id].append(filtered_track)
     peak_filts[audio_id].append((b,a))

@@ -1,5 +1,10 @@
 import numpy as np
 
+# bark frequencies used by functions defined on critical bandwidth
+bark_cutoffs = [20, 100, 200, 300, 400, 510, 630, 770, 920, 1080, 1270, 1480,
+                1720, 2000, 2320, 2700, 3150, 3700, 4400, 5300, 6400, 7700,
+                9500, 12000, 15500]
+
 # equation from Sethares (various papers)
 # could use updated equation from Vassilakis 2007
 # notes:    this function models roughness as: r = e^(-3.5x) - e^(-5.75x), 
@@ -13,8 +18,8 @@ def calculate_roughness_sethares(f1,v1,f2,v2) :
     d = 0.24
     s1 = 0.021
     s2 = 19
-    s = d / (s1 * min(f1,f2) + s2)
-    freq_diff = abs(f1 - f2)
+    s = d / (s1 * np.minimum(f1,f2) + s2)
+    freq_diff = np.abs(f1-f2)
     return v1*v2*(np.exp(a*s*freq_diff) - np.exp(b*s*freq_diff))
 
 # equation from Vassilakis 2007
@@ -39,14 +44,7 @@ def calculate_roughness_vassilakis(f1,v1,f2,v2) :
 def criteria_func_pass(f1,v1,f2,v2) :
     return True
 
-def criteria_critical_band_barks(f1,v1,f2,v2, bw_percent_low=0.1, bw_percent_high = 0.35) :
-    bark_cutoffs = [20, 100, 200, 300, 400, 510, 630, 770, 920, 1080, 1270, 1480,
-                1720, 2000, 2320, 2700, 3150, 3700, 4400, 5300, 6400, 7700,
-                9500, 12000, 15500]
-    # not dealing with ridiculously high or low frequencies
-    if f1 < bark_cutoffs[0] or f1 > bark_cutoffs[-1] or f2 < bark_cutoffs[0] or f2 > bark_cutoffs[-1] :
-        return False
-    
+def get_bandwidth_cutoffs(f1,f2, bw_percent_low, bw_percent_high) :
     bark_f1 = -1
     for i in range(len(bark_cutoffs)-1) :
         if f1 > bark_cutoffs[i] :
@@ -59,5 +57,15 @@ def criteria_critical_band_barks(f1,v1,f2,v2, bw_percent_low=0.1, bw_percent_hig
     bandwidth1 = bark_cutoffs[bark_f1+1] - bark_cutoffs[bark_f1]
     bandwidth2 = bark_cutoffs[bark_f2+1] - bark_cutoffs[bark_f2]
     avg_bandwidth = (bandwidth1+bandwidth2)*0.5
+
+    return (bw_percent_low * avg_bandwidth, bw_percent_high * avg_bandwidth)
+    
+def criteria_critical_band_barks(f1,v1,f2,v2, bw_percent_low=0.1, bw_percent_high = 0.35) :
+    # not dealing with ridiculously high or low frequencies
+    if f1 < bark_cutoffs[0] or f1 > bark_cutoffs[-1] or f2 < bark_cutoffs[0] or f2 > bark_cutoffs[-1] :
+        return False
+    
+    bw_low, bw_high = get_bandwidth_cutoffs(f1,f2, bw_percent_low, bw_percent_high)
     diff = abs(f1-f2)
-    return diff < (bw_percent_high*avg_bandwidth) and diff > (bw_percent_low*avg_bandwidth)
+    return diff < bw_high and diff > bw_low
+
