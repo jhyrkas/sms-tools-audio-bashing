@@ -62,11 +62,14 @@ for i in range(nfiles) :
 # --- FINDING AREAS OF ROUGHNESS
 
 # TODO: arg parse
-#r_func = calculate_roughness_vassilakis
-#threshold_r = 1.0e-2 # roughness
+r_func = calculate_roughness_vassilakis
+threshold_r = 1.0e-2 # roughness
 
-r_func = calculate_roughness_sethares
-threshold_r = 1.0e-4 # roughness
+#r_func = calculate_roughness_sethares
+#threshold_r = 1.0e-4 # roughness
+
+#r_func = calculate_roughness_pass
+#threshold_r = 1.0e-4
 
 c_func = criteria_critical_band_barks
 #c_func = criteria_func_pass
@@ -143,7 +146,7 @@ out_bashed = np.zeros(out_vanilla.shape)
 
 tmp_index = 0
 out_bashed = out_filt.copy()
-window_s = 0.05 # TODO: think about this
+window_s = 0.25 # TODO: think about this
 for i in range(nfiles) :
     sig = sigs[i]
     for j in range(len(notch_filts[i])) :
@@ -171,12 +174,21 @@ for i in range(nfiles) :
         
         original_mask = np.zeros(sigs[i].shape[0]) + 1.
         processed_mask = np.zeros(sigs[i].shape[0])
-        original_mask[edit_start:start_samp] = np.cos(np.linspace(0,np.pi/2,start_samp-edit_start))
-        processed_mask[edit_start:start_samp] = np.sin(np.linspace(0,np.pi/2,start_samp-edit_start))
+        # constant power
+        #original_mask[edit_start:start_samp] = np.cos(np.linspace(0,np.pi/2,start_samp-edit_start))
+        #processed_mask[edit_start:start_samp] = np.sin(np.linspace(0,np.pi/2,start_samp-edit_start))
+        #original_mask[start_samp:end_samp] = 0.
+        #processed_mask[start_samp:end_samp] = 1.
+        #original_mask[end_samp:edit_end] = np.sin(np.linspace(0,np.pi/2,edit_end-end_samp))
+        #processed_mask[end_samp:edit_end] = np.cos(np.linspace(0,np.pi/2,edit_end-end_samp))
+
+        # constant linear gain
+        original_mask[edit_start:start_samp] = np.linspace(1,0,start_samp-edit_start)
+        processed_mask[edit_start:start_samp] = np.linspace(0,1,start_samp-edit_start)
         original_mask[start_samp:end_samp] = 0.
         processed_mask[start_samp:end_samp] = 1.
-        original_mask[end_samp:edit_end] = np.sin(np.linspace(0,np.pi/2,edit_end-end_samp))
-        processed_mask[end_samp:edit_end] = np.cos(np.linspace(0,np.pi/2,edit_end-end_samp))
+        original_mask[end_samp:edit_end] = np.linspace(0,1,edit_end-end_samp)
+        processed_mask[end_samp:edit_end] = np.linspace(1,0,edit_end-end_samp)
 
         # housekeeping for maintaining the output signals
         sig = (original_mask * sig) + (processed_mask * s_filt)

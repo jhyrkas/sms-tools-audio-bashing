@@ -41,9 +41,6 @@ def calculate_roughness_vassilakis(f1,v1,f2,v2) :
     Z = np.exp(b1*s*fdiff)-np.exp(b2*s*fdiff)
     return X*Y*Z
 
-def criteria_func_pass(f1,v1,f2,v2) :
-    return True
-
 def get_bandwidth_cutoffs(f1,f2, bw_percent_low, bw_percent_high) :
     bark_f1 = -1
     for i in range(len(bark_cutoffs)-1) :
@@ -69,3 +66,10 @@ def criteria_critical_band_barks(f1,v1,f2,v2, bw_percent_low=0.1, bw_percent_hig
     diff = abs(f1-f2)
     return diff < bw_high and diff > bw_low
 
+# roughness always above threshold, only use criteria function to filter
+def calculate_roughness_pass(f1,v1,f2,v2) :
+    return 1.0
+
+# let all pairs through, only use roughness to filter
+def criteria_func_pass(f1,v1,f2,v2, bw_percent_low=0.1, bw_percent_high = 0.35) :
+    return True
