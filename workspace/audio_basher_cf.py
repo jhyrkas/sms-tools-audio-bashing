@@ -62,14 +62,14 @@ for i in range(nfiles) :
 # --- FINDING AREAS OF ROUGHNESS
 
 # TODO: arg parse
-r_func = calculate_roughness_vassilakis
-threshold_r = 1.0e-2 # roughness
+#r_func = calculate_roughness_vassilakis
+#threshold_r = 1.0e-2 # roughness
 
 #r_func = calculate_roughness_sethares
 #threshold_r = 1.0e-4 # roughness
 
-#r_func = calculate_roughness_pass
-#threshold_r = 1.0e-4
+r_func = calculate_roughness_pass
+threshold_r = 1.0e-4
 
 c_func = criteria_critical_band_barks
 #c_func = criteria_func_pass
