@@ -25,8 +25,8 @@ else :
 S1 = librosa.stft(s1, n_fft = 4096)
 S2 = librosa.stft(s2, n_fft = 4096)
 ss = librosa.istft(S1-S2)
-SD = np.abs(S1) - np.abs(S2)
-sgl = librosa.griffinlim(SD, n_iter=100)
+#SD = np.abs(S1) - np.abs(S2)
+#sgl = librosa.griffinlim(SD, n_iter=100)
 
 print('method1')
 sd.play(s1_final-s2_final,fs1)
@@ -34,9 +34,9 @@ sd.wait()
 print('method2')
 sd.play(ss,fs1)
 sd.wait()
-print('method3')
-sd.play(sgl,fs1)
-sd.wait()
+#print('method3')
+#sd.play(sgl,fs1)
+#sd.wait()
 
 
 #librosa.display.specshow(np.abs(S1-S2), y_axis='log', x_axis='time', sr=fs1, ax=ax)

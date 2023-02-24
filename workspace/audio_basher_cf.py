@@ -25,6 +25,8 @@ parser.add_argument('--hard_bash', dest='hard_bash', action=argparse.BooleanOpti
 parser.add_argument('--consonance', dest='consonance', action=argparse.BooleanOptionalAction, default=True, help='When soft bashing behavior is used (see "hard_bash" parameter), frequencie pairs that fall within the bandwidth with have the quieter partial moved within the bandwidth defined. If consonance is on, the most consonant frequency will be chosen; if consonance is off (False), the most dissonant freuqncy will be chosen. This algorithm is greedy and not necessarily optimal if moving the quieter frequency causes it to be moved within the range of another partial not previously analyzed.')
 parser.add_argument('-delta', dest='delta', action='store', type=float, default=3., help='The frequency difference of bashed sinusoids and their neighbor when hard bashing is enabled.')
 parser.add_argument('--normalize', dest='normalize', action=argparse.BooleanOptionalAction, default=False, help='Normalizes audio files to have the same maximum peak sample (only use if audio levels are not already determined)')
+parser.add_argument('-roughness_thresh', dest='roughness_thresh', action='store', type=float, default=0.0001, help='Defines the threshold of calculated roughness that a partial pair must exceed to be adjusted. Range is dependent on roughness function. Set to 0.0 to turn off roughness thresholding')
+
 
 args = parser.parse_args()
 print('ARGS PARSED')
@@ -40,8 +42,11 @@ bw_percent_low = args.bw_percent_low
 bw_percent_high = args.bw_percent_high
 hard_bash = args.hard_bash
 consonance = args.consonance
+threshold_r = args.roughness_thresh
 
 # --- ANALYZING FILES
+
+print('analysis')
 
 sigs = [None] * nfiles
 analyses = [None] * nfiles
@@ -65,17 +70,18 @@ for i in range(nfiles) :
 #r_func = calculate_roughness_vassilakis
 #threshold_r = 1.0e-2 # roughness
 
-#r_func = calculate_roughness_sethares
-#threshold_r = 1.0e-4 # roughness
+r_func = calculate_roughness_sethares
 
-r_func = calculate_roughness_pass
-threshold_r = 1.0e-4
+#r_func = calculate_roughness_pass
+#threshold_r = 1.0e-4
 
 c_func = criteria_critical_band_barks
 #c_func = criteria_func_pass
 c_func_dict = {'bw_percent_low': bw_percent_low, 'bw_percent_high': bw_percent_high}
 
 threshold_f = 10 # time in frames (100 ms) TODO: arg parse?
+
+print('overlap')
 
 filter_candidates = []
 for i in range(nfiles-1) :
@@ -92,6 +98,8 @@ notch_filts=[[] for i in range(nfiles)]
 peak_filts=[[] for i in range(nfiles)]
 times=[[] for i in range(nfiles)]
 
+print('calculating filters')
+
 for roughness,track1,track2 in filter_candidates :
     filter_track1 = track1.get_avg_amp() < track2.get_avg_amp()
     filtered_track = None
@@ -107,10 +115,13 @@ for roughness,track1,track2 in filter_candidates :
     else :
         # skip this pair
         continue
-    print('CLASHING FREQUENCIES: {f1_min:.2f},{f1_avg:.2f},{f1_max:.2f}\t{f2_min:.2f},{f2_avg:.2f},{f2_max:.2f}'.format(
-        f1_min=track1.get_min_freq(), f1_avg=track1.get_avg_freq(), f1_max=track1.get_max_freq(),
-        f2_min=track2.get_min_freq(), f2_avg=track2.get_avg_freq(), f2_max=track2.get_max_freq()
+    print('CLASHING FREQUENCIES: {f1_avg:.2f}\t{f2_avg:.2f}'.format(
+        f1_avg=track1.get_avg_freq(), f2_avg=track2.get_avg_freq()
         ))
+    #print('CLASHING FREQUENCIES: {f1_min:.2f},{f1_avg:.2f},{f1_max:.2f}\t{f2_min:.2f},{f2_avg:.2f},{f2_max:.2f}'.format(
+    #    f1_min=track1.get_min_freq(), f1_avg=track1.get_avg_freq(), f1_max=track1.get_max_freq(),
+    #    f2_min=track2.get_min_freq(), f2_avg=track2.get_avg_freq(), f2_max=track2.get_max_freq()
+    #    ))
     w0 = filtered_track.get_avg_freq()
     bw = max(filtered_track.get_max_freq() - filtered_track.get_avg_freq(), filtered_track.get_avg_freq() - filtered_track.get_min_freq())
     Q = min(w0/bw,100) # TODO: do this better
@@ -143,6 +154,8 @@ sf.write('vanilla.wav', out_vanilla, intended_fs)
 
 out_filt = np.zeros(out_vanilla.shape)
 out_bashed = np.zeros(out_vanilla.shape)
+
+print('filtering')
 
 tmp_index = 0
 out_bashed = out_filt.copy()
@@ -187,8 +200,9 @@ for i in range(nfiles) :
         processed_mask[edit_start:start_samp] = np.linspace(0,1,start_samp-edit_start)
         original_mask[start_samp:end_samp] = 0.
         processed_mask[start_samp:end_samp] = 1.
-        original_mask[end_samp:edit_end] = np.linspace(0,1,edit_end-end_samp)
-        processed_mask[end_samp:edit_end] = np.linspace(1,0,edit_end-end_samp)
+        if edit_end > end_samp : # occassionally this won't happen if the track goes all the way to the end of the file
+            original_mask[end_samp:edit_end] = np.linspace(0,1,edit_end-end_samp)
+            processed_mask[end_samp:edit_end] = np.linspace(1,0,edit_end-end_samp)
 
         # housekeeping for maintaining the output signals
         sig = (original_mask * sig) + (processed_mask * s_filt)

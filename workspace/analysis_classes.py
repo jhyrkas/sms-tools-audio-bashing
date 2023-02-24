@@ -213,22 +213,35 @@ class AnalyzedAudio :
 
     def calculate_roughness_overlap_tracks(self, other_audio, criteria_function = criteria_func_pass, roughness_function = calculate_roughness_sethares, c_func_kargs={'bw_percent_low':0.1, 'bw_percent_high':0.33}) :
         overlap_dict = {}
-        this_track_keys = self.tracks.keys()
-        that_track_keys = other_audio.tracks.keys()
+        this_tracks = [self.tracks[key] for key in self.tracks.keys()]
+        this_tracks = sorted(this_tracks, key=lambda x: x.start_time)
+        that_tracks = [other_audio.tracks[key] for key in other_audio.tracks.keys()]
+        that_tracks = sorted(that_tracks, key=lambda x: x.start_time)
 
-        for k1 in this_track_keys :
-            this_track = self.tracks[k1]
-            for k2 in that_track_keys :
-                that_track = other_audio.tracks[k2]
-                freq_clash = criteria_function(this_track.get_avg_freq(), this_track.get_avg_amp(), that_track.get_avg_freq(), that_track.get_avg_amp(), **c_func_kargs)
+        # note: would love to do without the double for-loop but some examples have many tracks with the same track lengths
+        # so it's hard to everything in one pass. this is ugly and technically O(N^2) but seems much faster. need to think
+        # this through to see if there's a good NlogN solution. feels like an interview question...
+        t1_index = 0
+        while t1_index < len(this_tracks)  :    
+            this_track = this_tracks[t1_index]
+            t2_index = 0
+            while t2_index < len(that_tracks) and that_tracks[t2_index].end_time < this_track.start_time :
+                t2_index += 1
+            while t2_index < len(that_tracks) and this_track.start_time < that_tracks[t2_index].end_time and this_track.end_time > that_tracks[t2_index].start_time :
+                that_track = that_tracks[t2_index]
                 t1 = this_track.get_adjusted_track_times()
                 t2 = that_track.get_adjusted_track_times()
+
+                freq_clash = criteria_function(this_track.get_avg_freq(), this_track.get_avg_amp(), that_track.get_avg_freq(), that_track.get_avg_amp(), **c_func_kargs)
                 time_overlap = t1[1] > t2[0] and t1[0] < t2[1]
-                if freq_clash and time_overlap :
+                if not time_overlap :
+                    print('messed up!')
+                if freq_clash :
                     r = roughness_function(this_track.get_avg_freq(), this_track.get_avg_amp(), that_track.get_avg_freq(), that_track.get_avg_amp())
                     first_frame = max(t1[0],t2[0]) // self.hop_len_s
                     end_frame = min(t1[1],t2[1]) // self.hop_len_s
-                    overlap_dict[(k1,k2)] = (r,first_frame, end_frame)
-
+                    overlap_dict[(this_track.track_id,that_track.track_id)] = (r,first_frame, end_frame)
+                t2_index += 1
+            t1_index += 1
         return overlap_dict
 
