@@ -34,7 +34,7 @@ print()
 audio_files = args.audio_files
 nfiles = len(audio_files)
 n_sines = args.n_sines
-new_whack_percent = args.whack_percent
+whack_percent = args.whack_percent
 normalize = args.normalize
 bw_percent_low = args.bw_percent_low
 bw_percent_high = args.bw_percent_high
@@ -63,10 +63,11 @@ for i in range(nfiles) :
 
 # getting the avg amps of all tracks because they might change multiple times during whacking and we will need
 # easy access to changes we have already made
-amp_dicts = [{}] * nfiles
+amp_dicts = []
 for i in range(nfiles) :
-    for k in analyses[i].keys() :
-        amp_dicts[i][k] = analyses[i].tracks[k].get_avg_freq()
+    amp_dicts.append({})
+    for k in analyses[i].tracks.keys() :
+        amp_dicts[i][k] = analyses[i].tracks[k].get_avg_amp()
 
 # --- FINDING AREAS OF ROUGHNESS
 
@@ -121,8 +122,12 @@ for roughness,track1,track2 in filter_candidates :
                 amp_dicts[track1.audiofile.file_id][track1.track_id],
                 track2.get_avg_freq(),
                 amp_dicts[track2.audiofile.file_id][track2.track_id],
-                perc_move
+                whack_percent
             )
+    print('NEW AMPLITUDES: {f1_avg:.2f},{a1_avg: .4f}\t{f2_avg:.2f},{a2_avg:.4f}'.format(
+        f1_avg=track1.get_avg_freq(), a1_avg = new_a1, f2_avg=track2.get_avg_freq(), a2_avg=new_a2
+        ))
+    print()
     w0_t1 = track1.get_avg_freq()
     bw_t1 = max(track1.get_max_freq() - track1.get_avg_freq(), track1.get_avg_freq() - track1.get_min_freq())
     Q_t1 = min(w0_t1/bw_t1,100)
@@ -157,13 +162,12 @@ for i in range(nfiles) :
     out_vanilla[:sigs[i].shape[0]] += sigs[i]
 sf.write('vanilla.wav', out_vanilla, intended_fs)
 
-filtered = np.zeros(out_vanilla.shape)
-out_bashed = np.zeros(out_vanilla.shape)
+out_filt = np.zeros(out_vanilla.shape)
+out_whacked = np.zeros(out_vanilla.shape)
 
 print('filtering')
 
 tmp_index = 0
-out_bashed = out_filt.copy()
 window_s = 0.25 # TODO: think about this
 for i in range(nfiles) :
     sig = sigs[i]
@@ -177,6 +181,7 @@ for i in range(nfiles) :
         new_amp = peak_amps[i][j]
         old_avg = np.mean(np.abs(s_peak))
         s_peak *= (new_amp / old_avg) # whacked amplitude
+        print('{o}\t{n}'.format(o=old_avg,n=new_amp))
 
         # make the cross fade masks
         start_t_s, end_t_s = times[i][j]
@@ -199,7 +204,7 @@ for i in range(nfiles) :
 
         # housekeeping for maintaining the output signals
         sig = (original_mask * sig) + (processed_mask * s_filt)
-        out_whacked[:s_filt.shape[0]] += (processed_mask * shifted_sig) # add in the cross-faded bashed sinusoid
+        out_whacked[:s_filt.shape[0]] += (processed_mask * s_peak) # add in the cross-faded bashed sinusoid
         #sf.write('tmp{i}_pre.wav'.format(i=tmp_index), s_peak/np.max(np.abs(s_peak)), intended_fs)
         #sf.write('tmp{i}_post.wav'.format(i=tmp_index), shifted_sig/np.max(np.abs(shifted_sig)), intended_fs)
         #sf.write('tmp{i}_filt.wav'.format(i=tmp_index), (original_mask * sigs[i]) + (processed_mask * s_filt), intended_fs)

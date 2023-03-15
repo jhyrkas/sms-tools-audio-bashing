@@ -125,7 +125,7 @@ def get_masking_level_dB(f_masker, f_masked) :
 # transfer amplitude from the quieter sinusoid to the louder sinusoid in a way that is both power preserving and
 # when perc_move = 1.0, the quieter sinusoid is theoretically completely masked by the louder
 def whack_amp(f1, a1, f2, a2, perc_move) :
-    loud_f, loud_a, quiet_f, quiet_a = f1,a1,f2,a2 if a1 > a2 else f2,a2,f1,a1
+    loud_f, loud_a, quiet_f, quiet_a = (f1,a1,f2,a2) if a1 > a2 else (f2,a2,f1,a1)
     orig_db_diff = 20*np.log10(loud_a) - 20*np.log10(quiet_a)
     masking_level_db = get_masking_level_dB(loud_f, quiet_f)
     delta = orig_db_diff + perc_move*(masking_level_db-orig_db_diff)
@@ -135,5 +135,5 @@ def whack_amp(f1, a1, f2, a2, perc_move) :
     #           a1**2 + a2**2 = new_a1**2 + new_a2**2
     # solve both for new_a1, then plug back through...
     new_quiet_a = np.sqrt((loud_a**2+quiet_a**2)/(1+10**(delta/10)))
-    new_loud_a = np.sqrt(loud_**2 + quiet_**2 - new_quiet_a**2)
-    return new_loud_a, new_quiet_a if a1 > a2 else new_quiet_a, new_loud_a
+    new_loud_a = np.sqrt(loud_a**2 + quiet_a**2 - new_quiet_a**2)
+    return (new_loud_a, new_quiet_a) if a1 > a2 else (new_quiet_a, new_loud_a)

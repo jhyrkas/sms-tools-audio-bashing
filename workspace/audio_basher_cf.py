@@ -157,7 +157,6 @@ out_bashed = np.zeros(out_vanilla.shape)
 print('filtering')
 
 tmp_index = 0
-out_bashed = out_filt.copy()
 window_s = 0.25 # TODO: think about this
 for i in range(nfiles) :
     sig = sigs[i]
