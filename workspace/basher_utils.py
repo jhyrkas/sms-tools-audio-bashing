@@ -5,6 +5,21 @@ bark_cutoffs = [20, 100, 200, 300, 400, 510, 630, 770, 920, 1080, 1270, 1480,
                 1720, 2000, 2320, 2700, 3150, 3700, 4400, 5300, 6400, 7700,
                 9500, 12000, 15500]
 
+def get_bark_diff(f1,f2) :
+    bark_f1 = -1
+    for i in range(len(bark_cutoffs)-1) :
+        if f1 > bark_cutoffs[i] :
+            bark_f1 = i
+    bark_f2 = -1
+    for i in range(len(bark_cutoffs)-1) :
+        if f2 > bark_cutoffs[i] :
+            bark_f2 = i
+
+    bandwidth1 = bark_cutoffs[bark_f1+1] - bark_cutoffs[bark_f1]
+    bandwidth2 = bark_cutoffs[bark_f2+1] - bark_cutoffs[bark_f2]
+    avg_bandwidth = (bandwidth1+bandwidth2)*0.5
+    return abs(f1-f2)/avg_bandwidth
+
 # equation from Sethares (various papers)
 # could use updated equation from Vassilakis 2007
 # notes:    this function models roughness as: r = e^(-3.5x) - e^(-5.75x), 
@@ -99,3 +114,26 @@ def bash_freq(orig_freq, comparison_freq, bw_percent_low, bw_percent_high, hard_
     roughnesses = calculate_roughness_sethares(freq_candidates, 1.0, comparison_freq, 1.0)
     index = np.argmin(roughnesses) if consonance else np.argmax(roughnesses)
     return freq_candidates[index]
+
+# find the different in dB that is necessary for f_masker to fully mask f_masked
+# estimation function from Lagrange 2001
+def get_masking_level_dB(f_masker, f_masked) :
+    bark_diff = get_bark_diff(f_masker, f_masked)
+    slope = 15 if f_masker < f_masked else 27
+    return 10 + bark_diff*slope
+
+# transfer amplitude from the quieter sinusoid to the louder sinusoid in a way that is both power preserving and
+# when perc_move = 1.0, the quieter sinusoid is theoretically completely masked by the louder
+def whack_amp(f1, a1, f2, a2, perc_move) :
+    loud_f, loud_a, quiet_f, quiet_a = f1,a1,f2,a2 if a1 > a2 else f2,a2,f1,a1
+    orig_db_diff = 20*np.log10(loud_a) - 20*np.log10(quiet_a)
+    masking_level_db = get_masking_level_dB(loud_f, quiet_f)
+    delta = orig_db_diff + perc_move*(masking_level_db-orig_db_diff)
+    # we need the new amplitudes to maintain power and also have a db diff of exactly delta when perc_move = 1.0
+    # these equations are found by doing a lot of nasty algebra. the equations are:
+    #           20*np.log10(new_a1) - 20*np.log10(new_a2) = delta
+    #           a1**2 + a2**2 = new_a1**2 + new_a2**2
+    # solve both for new_a1, then plug back through...
+    new_quiet_a = np.sqrt((loud_a**2+quiet_a**2)/(1+10**(delta/10)))
+    new_loud_a = np.sqrt(loud_**2 + quiet_**2 - new_quiet_a**2)
+    return new_loud_a, new_quiet_a if a1 > a2 else new_quiet_a, new_loud_a
