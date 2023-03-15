@@ -35,7 +35,9 @@ class Track :
         self.start_time = 0
         self.end_time = 0
         self.hop_len_s = hop_len_s
-        self.filtered = False
+        self.filtered = False # marker used in audio bashing and whacking
+        self.whacked = False # marker used only in audio whacking
+        self.whacked_amp = 0 # temporary amplitude storage when whacking. if whacked is not set, get_whacked_amp() will always get the avg instead
 
     def add_frame(self, snippet) :
         # maybe we can just keep them all?
@@ -91,6 +93,13 @@ class Track :
     def get_adjusted_track_times(self) :
         # TODO: be careful??
         return self.start_time + (self.hop_len_s*2), self.end_time + (self.hop_len_s*2)
+
+    def set_whacked_amp(self, amp) :
+        self.whacked = True
+        self.whacked_amp = amp
+
+    def get_whacked_amp(self) :
+        return self.whacked_amp if self.whacked else self.get_avg_amp()
 
     # TODO: more variables in the future? fs? extend length? 
     def get_interpolated_f0s(self) :
@@ -232,12 +241,12 @@ class AnalyzedAudio :
                 t1 = this_track.get_adjusted_track_times()
                 t2 = that_track.get_adjusted_track_times()
 
-                freq_clash = criteria_function(this_track.get_avg_freq(), this_track.get_avg_amp(), that_track.get_avg_freq(), that_track.get_avg_amp(), **c_func_kargs)
+                freq_clash = criteria_function(this_track.get_avg_freq(), this_track.get_whacked_amp(), that_track.get_avg_freq(), that_track.get_whacked_amp(), **c_func_kargs)
                 time_overlap = t1[1] > t2[0] and t1[0] < t2[1]
                 if not time_overlap :
                     print('messed up!')
                 if freq_clash :
-                    r = roughness_function(this_track.get_avg_freq(), this_track.get_avg_amp(), that_track.get_avg_freq(), that_track.get_avg_amp())
+                    r = roughness_function(this_track.get_avg_freq(), this_track.get_whacked_amp(), that_track.get_avg_freq(), that_track.get_whacked_amp())
                     first_frame = max(t1[0],t2[0]) // self.hop_len_s
                     end_frame = min(t1[1],t2[1]) // self.hop_len_s
                     overlap_dict[(this_track.track_id,that_track.track_id)] = (r,first_frame, end_frame)

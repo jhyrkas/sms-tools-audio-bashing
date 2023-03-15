@@ -61,14 +61,6 @@ for i in range(nfiles) :
     analyses[i] = AnalyzedAudio(i,s,intended_fs,n_sines)
     sigs[i] = sigs[i] * (1/nfiles) # trying to avoid clipping...do it after analysis though
 
-# getting the avg amps of all tracks because they might change multiple times during whacking and we will need
-# easy access to changes we have already made
-amp_dicts = []
-for i in range(nfiles) :
-    amp_dicts.append({})
-    for k in analyses[i].tracks.keys() :
-        amp_dicts[i][k] = analyses[i].tracks[k].get_avg_amp()
-
 # --- FINDING AREAS OF ROUGHNESS
 
 # TODO: arg parse
@@ -88,41 +80,39 @@ threshold_f = 10 # time in frames (100 ms) TODO: arg parse?
 
 print('overlap')
 
-filter_candidates = []
-for i in range(nfiles-1) :
-    for j in range(i+1, nfiles) :
-        #overlap_dict = analyses[i].calculate_roughness_overlap_frames(analyses[j], criteria_function=c_func, roughness_function=r_func)
-        overlap_dict = analyses[i].calculate_roughness_overlap_tracks(analyses[j], criteria_function=c_func, roughness_function=r_func, c_func_kargs=c_func_dict)
-        merge_overlaps(filter_candidates, overlap_dict, analyses[i], analyses[j], threshold_r, threshold_f)
-
-filter_candidates = sorted(filter_candidates, key=lambda x: x[0], reverse=True)
 
 tracks=[[] for i in range(nfiles)]
 notch_filts=[[] for i in range(nfiles)]
-peak_amps=[[] for i in range(nfiles)]
 peak_filts=[[] for i in range(nfiles)]
 times=[[] for i in range(nfiles)]
 tracks=[[] for i in range(nfiles)]
 
 print('calculating filters')
 
+filter_candidates = []
+for i in range(nfiles-1) :
+    for j in range(i+1, nfiles) :
+        overlap_dict = analyses[i].calculate_roughness_overlap_tracks(analyses[j], criteria_function=c_func, roughness_function=r_func, c_func_kargs=c_func_dict)
+        merge_overlaps(filter_candidates, overlap_dict, analyses[i], analyses[j], threshold_r, threshold_f)
+
+filter_candidates = sorted(filter_candidates, key=lambda x: x[0], reverse=True)
 for roughness,track1,track2 in filter_candidates :
-    filter_track1 = track1.get_avg_amp() < track2.get_avg_amp()
-    if filter_track1 and not track1.filtered :
-        track1.filtered = True
-    elif not filter_track1 and not track2.filtered :
-        track2.filtered = True
-    else :
+    # if statement conditions different than bashing: we are adjusting both tracks and it gets very complex
+    # to try to track things that changed as you increase or decrease tracks that contributed to roughness before.
+    # so for now, we just don't bother trying and only whack tracks that are both currently not adjusted
+    if track1.filtered or track2.filtered :
         # skip this pair
         continue
+
+    print('TRACK PAIR: file {f1} track {t1}\t file {f2} track {t2}'.format(f1=track1.audiofile.file_id, t1=track1.track_id, f2=track2.audiofile.file_id, t2=track2.track_id))
     print('CLASHING FREQUENCIES: {f1_avg:.2f},{a1_avg: .4f}\t{f2_avg:.2f},{a2_avg:.4f}'.format(
-        f1_avg=track1.get_avg_freq(), a1_avg = track1.get_avg_amp(), f2_avg=track2.get_avg_freq(), a2_avg=track2.get_avg_amp()
+        f1_avg=track1.get_avg_freq(), a1_avg = track1.get_whacked_amp(), f2_avg=track2.get_avg_freq(), a2_avg=track2.get_whacked_amp()
         ))
     new_a1, new_a2 = whack_amp(
                 track1.get_avg_freq(),
-                amp_dicts[track1.audiofile.file_id][track1.track_id],
+                track1.get_whacked_amp(),
                 track2.get_avg_freq(),
-                amp_dicts[track2.audiofile.file_id][track2.track_id],
+                track2.get_whacked_amp(),
                 whack_percent
             )
     print('NEW AMPLITUDES: {f1_avg:.2f},{a1_avg: .4f}\t{f2_avg:.2f},{a2_avg:.4f}'.format(
@@ -138,8 +128,7 @@ for roughness,track1,track2 in filter_candidates :
     notch_filts[audio_id1].append((b,a))
     b,a = scipy.signal.iirpeak(w0_t1,Q_t1,intended_fs)
     peak_filts[audio_id1].append((b,a))
-    peak_amps[audio_id1].append(new_a1)
-    amp_dicts[audio_id1][track1.track_id] = new_a1
+    track1.set_whacked_amp(new_a1)
     tracks[audio_id1].append(track1)
  
     w0_t2 = track2.get_avg_freq()
@@ -151,14 +140,15 @@ for roughness,track1,track2 in filter_candidates :
     notch_filts[audio_id2].append((b,a))
     b,a = scipy.signal.iirpeak(w0_t2,Q_t2,intended_fs)
     peak_filts[audio_id2].append((b,a))
-    peak_amps[audio_id2].append(new_a2)
-    amp_dicts[audio_id2][track2.track_id] = new_a2
+    track2.set_whacked_amp(new_a2)
     tracks[audio_id2].append(track2)
 
     t1 = track1.get_adjusted_track_times()
     t2 = track2.get_adjusted_track_times()
     times[audio_id1].append((max(t1[0],t2[0]),min(t1[1],t2[1])))
     times[audio_id2].append((max(t1[0],t2[0]),min(t1[1],t2[1])))
+    track1.filtered = True
+    track2.filtered = True
 
 out_vanilla = np.zeros(np.max([sigs[i].shape[0] for i in range(nfiles)]))
 for i in range(nfiles) :
@@ -181,7 +171,7 @@ for i in range(nfiles) :
         s_filt = scipy.signal.filtfilt(notch_filts[i][j][0], notch_filts[i][j][1], sig)
         # but get peaking signal from the original audio
         s_peak = scipy.signal.filtfilt(peak_filts[i][j][0], peak_filts[i][j][1], sigs[i])
-        new_amp = peak_amps[i][j]
+        new_amp = tracks[i][j].get_whacked_amp()
         old_avg = tracks[i][j].get_avg_amp()
         s_peak *= (new_amp / old_avg) # whacked amplitude
 
