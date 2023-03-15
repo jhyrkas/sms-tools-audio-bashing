@@ -102,6 +102,7 @@ notch_filts=[[] for i in range(nfiles)]
 peak_amps=[[] for i in range(nfiles)]
 peak_filts=[[] for i in range(nfiles)]
 times=[[] for i in range(nfiles)]
+tracks=[[] for i in range(nfiles)]
 
 print('calculating filters')
 
@@ -139,6 +140,7 @@ for roughness,track1,track2 in filter_candidates :
     peak_filts[audio_id1].append((b,a))
     peak_amps[audio_id1].append(new_a1)
     amp_dicts[audio_id1][track1.track_id] = new_a1
+    tracks[audio_id1].append(track1)
  
     w0_t2 = track2.get_avg_freq()
     bw_t2 = max(track2.get_max_freq() - track2.get_avg_freq(), track2.get_avg_freq() - track2.get_min_freq())
@@ -151,6 +153,7 @@ for roughness,track1,track2 in filter_candidates :
     peak_filts[audio_id2].append((b,a))
     peak_amps[audio_id2].append(new_a2)
     amp_dicts[audio_id2][track2.track_id] = new_a2
+    tracks[audio_id2].append(track2)
 
     t1 = track1.get_adjusted_track_times()
     t2 = track2.get_adjusted_track_times()
@@ -179,9 +182,8 @@ for i in range(nfiles) :
         # but get peaking signal from the original audio
         s_peak = scipy.signal.filtfilt(peak_filts[i][j][0], peak_filts[i][j][1], sigs[i])
         new_amp = peak_amps[i][j]
-        old_avg = np.mean(np.abs(s_peak))
+        old_avg = tracks[i][j].get_avg_amp()
         s_peak *= (new_amp / old_avg) # whacked amplitude
-        print('{o}\t{n}'.format(o=old_avg,n=new_amp))
 
         # make the cross fade masks
         start_t_s, end_t_s = times[i][j]
@@ -213,5 +215,5 @@ for i in range(nfiles) :
     out_filt[:sigs[i].shape[0]] += sig
     out_whacked[:sigs[i].shape[0]] += sig
 
-sf.write('filtered.wav', out_filt, intended_fs) # this isn't the same thing anymore
+#sf.write('filtered_w.wav', out_filt, intended_fs) # this isn't the same thing anymore
 sf.write('whacked.wav', out_whacked, intended_fs)
