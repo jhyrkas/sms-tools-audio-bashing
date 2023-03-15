@@ -4,7 +4,7 @@ import scipy.signal
 import soundfile as sf
 import sys
 
-from roughness_and_criteria_functions import *
+from basher_utils import *
 from scipy.stats import gmean # geometric mean
 
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '../software/models/'))

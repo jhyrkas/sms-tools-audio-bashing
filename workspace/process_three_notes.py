@@ -7,7 +7,7 @@ import soundfile as sf
 import sys
 
 from analysis_classes import *
-from roughness_and_criteria_functions import *
+from basher_utils import *
 
 def merge_overlaps(list_so_far, overlap_dict, analysis1, analysis2, threshold_r, threshold_f) :
     for key in overlap_dict.keys() :

@@ -9,7 +9,6 @@ import sys
 
 from analysis_classes import *
 from basher_utils import *
-from roughness_and_criteria_functions import *
 
 # --- PARSING ARGUMENTS
 parser = argparse.ArgumentParser(

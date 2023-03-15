@@ -7,7 +7,7 @@ import soundfile as sf
 import sys
 
 from analysis_classes import *
-from roughness_and_criteria_functions import *
+from basher_utils import *
 
 if len(sys.argv) < 3 :
     print('usage: python3 process_two_notes.py <audiofile1> <audiofile2> [optional-nsines] [optional-freq-diff-min] [optional-freq-diff-max] [optional-new-delta]')
