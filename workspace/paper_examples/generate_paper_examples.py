@@ -55,10 +55,16 @@ def get_vline_params(f_const, f_change, delta) :
 
     return lines_x, lines_ymin, lines_ymax, labels
 
+# getting audio files (might not be necessary)
 fs = 48000
 
 s1,fs1 = librosa.core.load('audio_files/sin440_neg20.wav', sr=fs)
 s2,fs2 = librosa.core.load('audio_files/sin470_neg30.wav', sr=fs)
+
+# ----------------------
+# BASHING FIGURES
+# ----------------------
+plt.figure(figsize=(14,6))
 
 # plot 1
 ax1 = plt.subplot(1,2,1)
@@ -107,4 +113,29 @@ for i in range(4) :
 ax2.set_title('base freq: {f1}, changing freq: {f2}'.format(f1=f1, f2=f2))
 ax2.legend()
 
+plt.savefig('freq_bashing.eps')
+plt.clf()
+
+# ----------------------
+# WHACKING FIGURES
+# ----------------------
+
+f1 = 440
+f2 = 470
+db1 = -20
+db2 = -30
+
+# masking curve
+ax1 = plt.subplot(1,2,1)
+ax1.vlines([f1,f2], [-70,-70], [db1,db2])
+x = np.linspace(300, 550, 1000)
+y = [db1-bu.get_masking_level_dB(f1, f) for f in x]
+ax1.plot(x,y)
+ax1.set_xlim([280, 570])
+ax1.set_ylim([-100, 0])
+
 plt.show()
+
+
+
+
