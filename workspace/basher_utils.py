@@ -1,24 +1,22 @@
 import numpy as np
 
-#bark frequencies used by functions defined on critical bandwidth
-bark_cutoffs = [20, 100, 200, 300, 400, 510, 630, 770, 920, 1080, 1270, 1480,
-                1720, 2000, 2320, 2700, 3150, 3700, 4400, 5300, 6400, 7700,
-                9500, 12000, 15500]
+# Traunmuller 1990
+def hz_to_bark(f) :
+    return ((26.81*f)/(1960+f)) - 0.53
+
+def bark_to_hz(z) :
+    return (1960*(z+0.53)) / (26.28-z)
 
 def get_bark_diff(f1,f2) :
-    bark_f1 = -1
-    for i in range(len(bark_cutoffs)-1) :
-        if f1 > bark_cutoffs[i] :
-            bark_f1 = i
-    bark_f2 = -1
-    for i in range(len(bark_cutoffs)-1) :
-        if f2 > bark_cutoffs[i] :
-            bark_f2 = i
+    return abs(hz_to_bark(f1) - hz_to_bark(f2))
 
-    bandwidth1 = bark_cutoffs[bark_f1+1] - bark_cutoffs[bark_f1]
-    bandwidth2 = bark_cutoffs[bark_f2+1] - bark_cutoffs[bark_f2]
-    avg_bandwidth = (bandwidth1+bandwidth2)*0.5
-    return abs(f1-f2)/avg_bandwidth
+# get the difference in Hz around a frequency (i.e. if we are in the range where a critical band is
+# around 100 Hz, bw_percent_low = 0.1 bw_percent_high = 0.35 should return ~ (10, 35)
+def get_bandwidth_cutoffs(f, bw_percent_low, bw_percent_high) :
+    b = hz_to_bark(f)
+    f_low = ((f-bark_to_hz(b-bw_percent_low)) + (bark_to_hz(b+bw_percent_low) - f)) * 0.5
+    f_high = ((f-bark_to_hz(b-bw_percent_high)) + (bark_to_hz(b+bw_percent_high) - f)) * 0.5
+    return f_low, f_high
 
 # equation from Sethares (various papers)
 # could use updated equation from Vassilakis 2007
@@ -56,28 +54,8 @@ def calculate_roughness_vassilakis(f1,v1,f2,v2) :
     Z = np.exp(b1*s*fdiff)-np.exp(b2*s*fdiff)
     return X*Y*Z
 
-def get_bandwidth_cutoffs(f1,f2, bw_percent_low, bw_percent_high) :
-    bark_f1 = -1
-    for i in range(len(bark_cutoffs)-1) :
-        if f1 > bark_cutoffs[i] :
-            bark_f1 = i
-    bark_f2 = -1
-    for i in range(len(bark_cutoffs)-1) :
-        if f2 > bark_cutoffs[i] :
-            bark_f2 = i
-
-    bandwidth1 = bark_cutoffs[bark_f1+1] - bark_cutoffs[bark_f1]
-    bandwidth2 = bark_cutoffs[bark_f2+1] - bark_cutoffs[bark_f2]
-    avg_bandwidth = (bandwidth1+bandwidth2)*0.5
-
-    return (bw_percent_low * avg_bandwidth, bw_percent_high * avg_bandwidth)
-
 def criteria_critical_band_barks(f1,v1,f2,v2, bw_percent_low=0.1, bw_percent_high = 0.35) :
-    # not dealing with ridiculously high or low frequencies
-    if f1 < bark_cutoffs[0] or f1 > bark_cutoffs[-1] or f2 < bark_cutoffs[0] or f2 > bark_cutoffs[-1] :
-        return False
-
-    bw_low, bw_high = get_bandwidth_cutoffs(f1,f2, bw_percent_low, bw_percent_high)
+    bw_low, bw_high = get_bandwidth_cutoffs(f1, bw_percent_low, bw_percent_high)
     diff = abs(f1-f2)
     return diff < bw_high and diff > bw_low
 
@@ -106,7 +84,7 @@ def bash_freq(orig_freq, comparison_freq, bw_percent_low, bw_percent_high, hard_
         return comparison_freq - delta if orig_freq < comparison_freq else comparison_freq + delta
 
     # rudimentary brute force search
-    bandwidths = get_bandwidth_cutoffs(orig_freq, comparison_freq, bw_percent_low, bw_percent_high)
+    bandwidths = get_bandwidth_cutoffs(comparison_freq, bw_percent_low, bw_percent_high)
     freq_low_bound = comparison_freq - bandwidths[1] if orig_freq < comparison_freq else comparison_freq + bandwidths[0]
     freq_high_bound = comparison_freq - bandwidths[0] if orig_freq < comparison_freq else comparison_freq + bandwidths[1]
     freq_candidates = np.linspace(freq_low_bound, freq_high_bound, 100)
