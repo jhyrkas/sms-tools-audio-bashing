@@ -25,7 +25,6 @@ parser.add_argument('-whack_percent', dest='whack_percent', action='store', type
 parser.add_argument('--normalize', dest='normalize', action=argparse.BooleanOptionalAction, default=False, help='Normalizes audio files to have the same maximum peak sample (only use if audio levels are not already determined)')
 parser.add_argument('-roughness_thresh', dest='roughness_thresh', action='store', type=float, default=0.0001, help='Defines the threshold of calculated roughness that a partial pair must exceed to be adjusted. Range is dependent on roughness function. Set to 0.0 to turn off roughness thresholding')
 
-
 args = parser.parse_args()
 print('ARGS PARSED')
 print(args)
@@ -65,12 +64,8 @@ for i in range(nfiles) :
 
 # TODO: arg parse
 #r_func = calculate_roughness_vassilakis
-#threshold_r = 1.0e-2 # roughness
-
 r_func = calculate_roughness_sethares
-
 #r_func = calculate_roughness_pass
-#threshold_r = 1.0e-4
 
 c_func = criteria_critical_band_barks
 #c_func = criteria_func_pass
@@ -79,7 +74,6 @@ c_func_dict = {'bw_percent_low': bw_percent_low, 'bw_percent_high': bw_percent_h
 threshold_f = 10 # time in frames (100 ms) TODO: arg parse?
 
 print('overlap')
-
 
 tracks=[[] for i in range(nfiles)]
 notch_filts=[[] for i in range(nfiles)]
@@ -104,8 +98,10 @@ for roughness,track1,track2 in filter_candidates :
         # skip this pair
         continue
 
-    print('TRACK PAIR: file {f1} track {t1}\t file {f2} track {t2}'.format(f1=track1.audiofile.file_id, t1=track1.track_id, f2=track2.audiofile.file_id, t2=track2.track_id))
-    print('CLASHING FREQUENCIES: {f1_avg:.2f},{a1_avg: .4f}\t{f2_avg:.2f},{a2_avg:.4f}'.format(
+    #print('TRACK PAIR: file {f1} track {t1}\t file {f2} track {t2}'.format(
+    #    f1=track1.audiofile.file_id, t1=track1.track_id, f2=track2.audiofile.file_id, t2=track2.track_id)
+    #)
+    print('CLASHING FREQUENCIES:\t{f1_avg:.2f},{a1_avg: .4f}\t{f2_avg:.2f}, {a2_avg:.4f}'.format(
         f1_avg=track1.get_avg_freq(), a1_avg = track1.get_whacked_amp(), f2_avg=track2.get_avg_freq(), a2_avg=track2.get_whacked_amp()
         ))
     new_a1, new_a2 = whack_amp(
@@ -113,9 +109,10 @@ for roughness,track1,track2 in filter_candidates :
                 track1.get_whacked_amp(),
                 track2.get_avg_freq(),
                 track2.get_whacked_amp(),
-                whack_percent
+                whack_percent,
+                consonance
             )
-    print('NEW AMPLITUDES: {f1_avg:.2f},{a1_avg: .4f}\t{f2_avg:.2f},{a2_avg:.4f}'.format(
+    print('NEW AMPLITUDES:\t\t{f1_avg:.2f},{a1_avg: .4f}\t{f2_avg:.2f}, {a2_avg:.4f}'.format(
         f1_avg=track1.get_avg_freq(), a1_avg = new_a1, f2_avg=track2.get_avg_freq(), a2_avg=new_a2
         ))
     print()
