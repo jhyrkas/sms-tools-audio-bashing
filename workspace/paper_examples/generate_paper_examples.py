@@ -13,7 +13,7 @@ except :
     sys.exit(1)
 
 if not os.path.exists('audio_files/sin440_neg20.wav') :
-    print('Please run and then try again: cd audio_files; python3 generate_sines.py; cd ..')
+    print('Please run and then try again: cd audio_files; python3 generate_wavs.py; cd ..')
     sys.exit(1)
 
 def roughness_func_exp(f1,f2) :
@@ -90,9 +90,9 @@ ax2.set_ylim([-50, -9])
 ax2.set_title('Masking curve (440 Hz, -10 dB)')
 ax2.set_xlabel('Frequency')
 ax2.set_ylabel('dB')
-ax2.legend()
+ax2.legend(fontsize='x-large')
 f.tight_layout()
-plt.savefig('equations.eps')
+plt.savefig('equations.pdf')
 plt.clf()
 
 # ----------------------
@@ -128,7 +128,7 @@ for i in range(4) :
 ax1.set_title('Frequency bashing - base: {f1} Hz'.format(f1=f1))
 ax1.set_xlabel('Modeled % CB difference')
 ax1.set_ylabel('Roughness (unitless)')
-ax1.legend()
+ax1.legend(fontsize='x-large')
 
 # plot 2
 #ax2 = plt.subplot(1,2,2)
@@ -148,9 +148,9 @@ for i in range(4) :
 
 ax2.set_title('Frequency bashing - base: {f1} Hz'.format(f1=f1))
 ax2.set_xlabel('Modeled % CB difference')
-ax2.legend()
+ax2.legend(fontsize='x-large')
 f.tight_layout()
-plt.savefig('freq_bashing.eps')
+plt.savefig('freq_bashing.pdf')
 plt.clf()
 
 # ----------------------
@@ -166,10 +166,10 @@ a2 = 10**(db2/20)
 
 # masking curve
 ax1.vlines([f1,f2], [-70,-70], [db1,db2], colors='red', label='Original amplitudes')
-x = np.linspace(400, 500, 250)
+x = np.linspace(400, 550, 250)
 y = [db1-bu.get_masking_level_dB(f1, f) for f in x]
 ax1.plot(x,y, label='Original masking curve')
-ax1.set_xlim([400, 500])
+ax1.set_xlim([400, 550])
 ax1.set_ylim([-40, -19])
 ax1.set_xlabel('Frequency')
 ax1.set_ylabel('dB')
@@ -183,7 +183,7 @@ ax1.plot(x_p,y_p, 'g:', label='New masking curve')
 ax1.scatter([f1,f2], [new_db1, new_db2], c='black', marker='x', label='Whacked amplitudes')
 ax1.set_title('Amplitude whacking - lower freq. louder'.format(f1=f1))
 
-ax1.legend()
+ax1.legend(fontsize='x-large')
 
 f1 = 880
 f2 = 910
@@ -193,10 +193,10 @@ a1 = 10**(db1/20)
 a2 = 10**(db2/20)
 
 ax2.vlines([f1,f2], [-70,-70], [db1,db2], colors='red', label='Original amplitudes')
-x = np.linspace(830, 990, 250)
+x = np.linspace(850, 1050, 250)
 y = [db2-bu.get_masking_level_dB(f2, f) for f in x]
 ax2.plot(x,y, label='Original masking curve')
-ax2.set_xlim([860, 960])
+ax2.set_xlim([850, 1050])
 ax2.set_ylim([-40, -19])
 ax2.set_xlabel('Frequency')
 
@@ -208,7 +208,7 @@ y_p = [new_db2-bu.get_masking_level_dB(f2, f) for f in x_p]
 ax2.plot(x_p,y_p, 'g:', label='New masking curve')
 ax2.scatter([f1,f2], [new_db1, new_db2], c='black', marker='x', label='Whacked amplitudes')
 ax2.set_title('Amplitude whacking - higher freq. louder'.format(f1=f1))
-ax2.legend()
+ax2.legend(fontsize='x-large')
 f.tight_layout()
 # for plotting reduction in roughness
 '''
@@ -223,7 +223,7 @@ ax2.set_ylabel('Roughness (unitless)')
 ax2.set_title('Roughness calculation (Sethares 2005)')
 '''
 
-plt.savefig('amp_whacking.eps')
+plt.savefig('amp_whacking.pdf')
 plt.clf()
 
 bash_cmd_sine = 'python3 ../audio_basher_cf.py -nsines=1 -bw_percent_low=0.05 -bw_percent_high=0.35 {d_option} {h_option} audio_files/sin440_neg20.wav audio_files/sin470_neg30.wav'
@@ -274,19 +274,72 @@ os.system(whack_cmd_sine.format(p=1.0))
 os.system(mv_cmd.format(in_name='whacked.wav', out_name='sine880_910_whack_100.wav'))
 os.system('rm vanilla.wav')
 
+'''
+# tuning examples
+os.system('python3 ../audio_basher_cf.py -nsines=20 -bw_percent_low=0.01 -bw_percent_high=0.35 --normalize --consonance audio_files/saw_root.wav audio_files/saw_third_equal.wav audio_files/saw_fifth_equal.wav')
+os.system('mv vanilla.wav audio_files/saw_equal_simple_chord.wav')
+os.system('rm filtered.wav')
+os.system('mv bashed.wav audio_files/saw_equal_simple_bashed.wav')
+os.system('python3 ../audio_basher_cf.py -nsines=20 -bw_percent_low=0.01 -bw_percent_high=0.35 --normalize --consonance audio_files/saw_root.wav audio_files/saw_third_just.wav audio_files/saw_fifth_just.wav')
+os.system('mv vanilla.wav audio_files/saw_just_simple_chord.wav')
+os.system('rm filtered.wav')
+os.system('rm bashed.wav')
+os.system('python3 ../audio_basher_cf.py -nsines=20 -bw_percent_low=0.01 -bw_percent_high=0.35 --normalize --consonance audio_files/saw_root.wav audio_files/saw_third_equal.wav audio_files/saw_fifth_equal.wav audio_files/saw_seven_equal.wav')
+os.system('mv vanilla.wav audio_files/saw_equal_complex_chord.wav')
+os.system('rm filtered.wav')
+os.system('mv bashed.wav audio_files/saw_equal_complex_bashed.wav')
+os.system('python3 ../audio_basher_cf.py -nsines=20 -bw_percent_low=0.01 -bw_percent_high=0.35 --normalize --consonance audio_files/saw_root.wav audio_files/saw_third_just.wav audio_files/saw_fifth_just.wav audio_files/saw_seven_just.wav')
+os.system('mv vanilla.wav audio_files/saw_just_complex_chord.wav')
+os.system('rm filtered.wav')
+os.system('rm bashed.wav')
+'''
+# tuning examples
+os.system('python3 ../audio_basher_cf.py -nsines=20 -bw_percent_low=0.05 -bw_percent_high=0.35 --normalize --consonance audio_files/square_root.wav audio_files/square_third_equal.wav audio_files/square_fifth_equal.wav')
+os.system('mv vanilla.wav audio_files/square_equal_simple_chord.wav')
+os.system('rm filtered.wav')
+os.system('mv bashed.wav audio_files/square_equal_simple_bashed.wav')
+os.system('python3 ../audio_basher_cf.py -nsines=20 -bw_percent_low=0.05 -bw_percent_high=0.35 --normalize --consonance audio_files/square_root.wav audio_files/square_third_just.wav audio_files/square_fifth_just.wav')
+os.system('mv vanilla.wav audio_files/square_just_simple_chord.wav')
+os.system('rm filtered.wav')
+os.system('rm bashed.wav')
+os.system('python3 ../audio_basher_cf.py -nsines=20 -bw_percent_low=0.05 -bw_percent_high=0.35 --normalize --consonance audio_files/square_root.wav audio_files/square_third_equal.wav audio_files/square_fifth_equal.wav audio_files/square_seven_equal.wav')
+os.system('mv vanilla.wav audio_files/square_equal_complex_chord.wav')
+os.system('rm filtered.wav')
+os.system('mv bashed.wav audio_files/square_equal_complex_bashed.wav')
+os.system('python3 ../audio_basher_cf.py -nsines=20 -bw_percent_low=0.05 -bw_percent_high=0.35 --normalize --consonance audio_files/square_root.wav audio_files/square_third_just.wav audio_files/square_fifth_just.wav audio_files/square_seven_just.wav')
+os.system('mv vanilla.wav audio_files/square_just_complex_chord.wav')
+os.system('rm filtered.wav')
+os.system('rm bashed.wav')
+
 # some dynamic examples
+# detuned
 os.system('python3 ../audio_basher_cf.py -nsines=7 -delta=3 -bw_percent_low=0.02 -bw_percent_high=0.35 --normalize --consonance ../audio/detuned/*')
+tmp_s1, fs1 = sf.read('vanilla.wav')
+tmp_s2, fs2 = sf.read('bashed.wav')
+sf.write('audio_files/detuned_difference.wav', tmp_s1-tmp_s2, fs1)
 os.system('mv vanilla.wav audio_files/detuned_vanilla.wav')
 os.system('mv bashed.wav audio_files/detuned_bashed.wav')
 os.system('rm filtered.wav')
+# horns
 os.system('python3 ../audio_whacker_cf.py -nsines=7 -bw_percent_low=0.02 -bw_percent_high=0.35 --normalize --consonance ../audio/rodrigobonelli_balladforlaura_medleydb/*')
+tmp_s1, fs1 = sf.read('vanilla.wav')
+tmp_s2, fs2 = sf.read('whacked.wav')
+sf.write('audio_files/horns_difference.wav', tmp_s1-tmp_s2, fs1)
 os.system('mv vanilla.wav audio_files/horns_vanilla.wav')
 os.system('mv whacked.wav audio_files/horns_whacked.wav')
+# minor chord
 os.system('python3 ../audio_basher_cf.py -nsines=10 -delta=3 -bw_percent_low=0.02 -bw_percent_high=0.35 --normalize --consonance ../audio/chord2/*')
+tmp_s1, fs1 = sf.read('vanilla.wav')
+tmp_s2, fs2 = sf.read('bashed.wav')
+sf.write('audio_files/minor_chord_difference.wav', tmp_s1-tmp_s2, fs1)
 os.system('mv vanilla.wav audio_files/minor_chord_vanilla.wav')
 os.system('mv filtered.wav audio_files/minor_chord_filtered.wav')
 os.system('rm bashed.wav')
+# choir dissonance
 os.system('python3 ../audio_basher_cf.py -nsines=7 -delta=3 -bw_percent_low=0.02 -bw_percent_high=0.4 --normalize --no-consonance -roughness_thresh=0.0005 ../audio/vocal_large/*')
+tmp_s1, fs1 = sf.read('vanilla.wav')
+tmp_s2, fs2 = sf.read('bashed.wav')
+sf.write('audio_files/choir_difference.wav', tmp_s1-tmp_s2, fs1)
 os.system('mv vanilla.wav audio_files/choir_vanilla.wav')
 os.system('mv bashed.wav audio_files/choir_bashed.wav')
 os.system('rm filtered.wav')

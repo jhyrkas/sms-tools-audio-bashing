@@ -150,7 +150,10 @@ for roughness,track1,track2 in filter_candidates :
 out_vanilla = np.zeros(np.max([sigs[i].shape[0] for i in range(nfiles)]))
 for i in range(nfiles) :
     out_vanilla[:sigs[i].shape[0]] += sigs[i]
-sf.write('vanilla.wav', out_vanilla, intended_fs)
+if normalize :
+    sf.write('vanilla.wav', out_vanilla / np.max(np.abs(out_vanilla)), intended_fs)
+else :
+    sf.write('vanilla.wav', out_vanilla, intended_fs)
 
 out_filt = np.zeros(out_vanilla.shape)
 out_whacked = np.zeros(out_vanilla.shape)
@@ -202,5 +205,7 @@ for i in range(nfiles) :
     out_filt[:sigs[i].shape[0]] += sig
     out_whacked[:sigs[i].shape[0]] += sig
 
-#sf.write('filtered_w.wav', out_filt, intended_fs) # this isn't the same thing anymore
-sf.write('whacked.wav', out_whacked, intended_fs)
+if normalize :
+    sf.write('whacked.wav', out_whacked / np.max(np.abs(out_whacked)), intended_fs)
+else :
+    sf.write('whacked.wav', out_whacked, intended_fs)
