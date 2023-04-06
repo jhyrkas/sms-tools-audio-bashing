@@ -58,7 +58,8 @@ for i in range(nfiles) :
         s = s / np.max(np.abs(s))
     sigs[i] = s
     analyses[i] = AnalyzedAudio(i,s,intended_fs,n_sines)
-    sigs[i] = sigs[i] * (1/nfiles) # trying to avoid clipping...do it after analysis though
+    if normalize :
+        sigs[i] = sigs[i] * (1/nfiles) # trying to avoid clipping...do it after analysis though
 
 # --- FINDING AREAS OF ROUGHNESS
 
@@ -150,10 +151,7 @@ for roughness,track1,track2 in filter_candidates :
 out_vanilla = np.zeros(np.max([sigs[i].shape[0] for i in range(nfiles)]))
 for i in range(nfiles) :
     out_vanilla[:sigs[i].shape[0]] += sigs[i]
-if normalize :
-    sf.write('vanilla.wav', out_vanilla / np.max(np.abs(out_vanilla)), intended_fs)
-else :
-    sf.write('vanilla.wav', out_vanilla, intended_fs)
+sf.write('vanilla.wav', out_vanilla, intended_fs)
 
 out_filt = np.zeros(out_vanilla.shape)
 out_whacked = np.zeros(out_vanilla.shape)
@@ -205,7 +203,4 @@ for i in range(nfiles) :
     out_filt[:sigs[i].shape[0]] += sig
     out_whacked[:sigs[i].shape[0]] += sig
 
-if normalize :
-    sf.write('whacked.wav', out_whacked / np.max(np.abs(out_whacked)), intended_fs)
-else :
-    sf.write('whacked.wav', out_whacked, intended_fs)
+sf.write('whacked.wav', out_whacked, intended_fs)
