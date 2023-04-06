@@ -93,6 +93,7 @@ ax2.set_ylabel('dB')
 ax2.legend(fontsize='x-large')
 f.tight_layout()
 plt.savefig('equations.pdf')
+plt.savefig('equations.png')
 plt.clf()
 
 # ----------------------
@@ -151,6 +152,7 @@ ax2.set_xlabel('Modeled % CB difference')
 ax2.legend(fontsize='x-large')
 f.tight_layout()
 plt.savefig('freq_bashing.pdf')
+plt.savefig('freq_bashing.png')
 plt.clf()
 
 # ----------------------
@@ -224,6 +226,7 @@ ax2.set_title('Roughness calculation (Sethares 2005)')
 '''
 
 plt.savefig('amp_whacking.pdf')
+plt.savefig('amp_whacking.png')
 plt.clf()
 
 bash_cmd_sine = 'python3 ../audio_basher_cf.py -nsines=1 -bw_percent_low=0.05 -bw_percent_high=0.35 {d_option} {h_option} audio_files/sin440_neg20.wav audio_files/sin470_neg30.wav'
@@ -357,9 +360,9 @@ sf.write('audio_files/choir_difference.wav', tmp_s1-tmp_s2, fs1)
 os.system('mv vanilla.wav audio_files/choir_vanilla.wav')
 os.system('mv bashed.wav audio_files/choir_bashed.wav')
 os.system('rm filtered.wav')
-os.system('python3 ../audio_basher_cf.py -nsines=20 -bw_percent_low=0.001 -bw_percent_high=0.35 --normalize --consonance -delta=3 --hard_bash -roughness_thresh=0.00005 audio_files/saw_root.wav audio_files/saw_third_equal.wav audio_files/saw_fifth_equal.wav')
+os.system('python3 ../audio_basher_cf.py -nsines=20 -bw_percent_low=0.001 -bw_percent_high=0.35 --normalize --consonance -delta=3 --hard_bash -roughness_thresh=0.0001 audio_files/saw_root.wav audio_files/saw_third_equal.wav audio_files/saw_fifth_equal.wav')
 tmp_s1, fs1 = sf.read('vanilla.wav')
-mod = 0.1*np.sin(2*np.pi*1.5*np.arange(tmp_s1.shape[0])/fs1) + 0.9
+mod = 0.1*np.sin(2*np.pi*3.2*np.arange(tmp_s1.shape[0])/fs1) + 0.9
 sf.write('audio_files/major_chord_tremolo.wav', tmp_s1*mod, fs1)
 os.system('mv vanilla.wav audio_files/major_chord_vanilla.wav')
 os.system('mv bashed.wav audio_files/major_chord_hard_bash.wav')
