@@ -55,7 +55,7 @@ def get_vline_params(f_const, f_change, delta) :
     lines_ymin.append(0)
     lines_ymax.append(y)
 
-    labels = ['orig ({f:.1f} Hz)'.format(f=f_change),
+    labels = ['original ({f:.1f} Hz)'.format(f=f_change),
               'consonant ({f:.1f} Hz)'.format(f=cons_freq),
               'dissonant ({f:.1f} Hz)'.format(f=diss_freq),
               'hard bash ({f:.1f} Hz)'.format(f=hard_freq)
@@ -122,6 +122,11 @@ lines_x, lines_ymin, lines_ymax, labels = get_vline_params(f1, f2, 3)
 for i in range(4) :
     ax1.vlines(lines_x[i], lines_ymin[i], lines_ymax[i],
                colors=colors[i], linestyles=linestyles[i], label=labels[i])
+
+ax1.annotate('Allowable range in Barks', xy=(0.336, 0.70), xytext=(0.336, 0.80), xycoords='axes fraction', 
+            fontsize=12.0, ha='center', va='bottom',
+            bbox=dict(boxstyle='square', fc='white'),
+            arrowprops=dict(arrowstyle='-[, widthB=8.5, lengthB=1.5', lw=2.0))
 #ax1.vlines(lines_x, lines_ymin, lines_ymax, 
 #           colors=['red', 'orange', 'green', 'purple'],
 #           linestyles=['solid', 'dashed', 'dashdot', 'dotted'],
@@ -150,6 +155,10 @@ for i in range(4) :
 ax2.set_title('Frequency bashing - base: {f1} Hz'.format(f1=f1))
 ax2.set_xlabel('Modeled % CB difference')
 ax2.legend(fontsize='x-large')
+ax2.annotate('Allowable range in Barks', xy=(0.336, 0.70), xytext=(0.336, 0.80), xycoords='axes fraction', 
+            fontsize=12.0, ha='center', va='bottom',
+            bbox=dict(boxstyle='square', fc='white'),
+            arrowprops=dict(arrowstyle='-[, widthB=8.5, lengthB=1.5', lw=2.0))
 f.tight_layout()
 plt.savefig('freq_bashing.pdf')
 plt.savefig('freq_bashing.png')
@@ -360,6 +369,7 @@ sf.write('audio_files/choir_difference.wav', tmp_s1-tmp_s2, fs1)
 os.system('mv vanilla.wav audio_files/choir_vanilla.wav')
 os.system('mv bashed.wav audio_files/choir_bashed.wav')
 os.system('rm filtered.wav')
+# tremolo effect
 os.system('python3 ../audio_basher_cf.py -nsines=20 -bw_percent_low=0.001 -bw_percent_high=0.35 --normalize --consonance -delta=3 --hard_bash -roughness_thresh=0.0001 audio_files/saw_root.wav audio_files/saw_third_equal.wav audio_files/saw_fifth_equal.wav')
 tmp_s1, fs1 = sf.read('vanilla.wav')
 mod = 0.1*np.sin(2*np.pi*3.2*np.arange(tmp_s1.shape[0])/fs1) + 0.9
@@ -367,3 +377,34 @@ sf.write('audio_files/major_chord_tremolo.wav', tmp_s1*mod, fs1)
 os.system('mv vanilla.wav audio_files/major_chord_vanilla.wav')
 os.system('mv bashed.wav audio_files/major_chord_hard_bash.wav')
 os.system('rm filtered.wav')
+
+# spectrogram
+s1,fs1 = sf.read('audio_files/horns_vanilla.wav')
+s2,fs2 = sf.read('audio_files/horns_whacked.wav')
+
+S1 = librosa.stft(s1, n_fft = 4096)
+S2 = librosa.stft(s2, n_fft = 4096)
+
+D1 = librosa.amplitude_to_db(np.abs(S1), ref=np.max)
+D2 = librosa.amplitude_to_db(np.abs(S2), ref=np.max)
+D3 = np.abs(S1-S2)
+freqs = librosa.fft_frequencies(sr=fs1, n_fft = 4096)
+P3 = librosa.perceptual_weighting(D3, freqs)
+
+f, (ax1, ax2, ax3) = plt.subplots(1, 3, sharey='row', figsize=(14,6))
+librosa.display.specshow(D1, y_axis='log', x_axis='time', sr=fs1, ax=ax1)
+librosa.display.specshow(D2, y_axis='log', x_axis='time', sr=fs1, ax=ax2)
+librosa.display.specshow(D3, y_axis='log', x_axis='time', sr=fs1, ax=ax3)
+
+ax1.set_title('Vanilla Signal')
+ax2.set_title('Whacked Signal')
+ax3.set_title('Signal Difference')
+
+f.tight_layout()
+plt.savefig('spect_difference.pdf')
+plt.savefig('spect_difference.png')
+plt.clf()
+
+
+
+
