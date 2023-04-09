@@ -99,20 +99,19 @@ times=[[] for i in range(nfiles)]
 print('calculating filters')
 
 for roughness,track1,track2 in filter_candidates :
+    if track1.filtered or track2.filtered :
+        continue
     filter_track1 = track1.get_avg_amp() < track2.get_avg_amp()
     filtered_track = None
     unfiltered_track = None
-    if filter_track1 and not track1.filtered :
+    if filter_track1 :
         filtered_track = track1
         unfiltered_track = track2
         track1.filtered = True
-    elif not filter_track1 and not track2.filtered :
+    elif not filter_track1 :
         filtered_track = track2
         unfiltered_track = track1
         track2.filtered = True
-    else :
-        # skip this pair
-        continue
     print('CLASHING FREQUENCIES: {f1_avg:.2f}\t{f2_avg:.2f}'.format(
         f1_avg=track1.get_avg_freq(), f2_avg=track2.get_avg_freq()
         ))

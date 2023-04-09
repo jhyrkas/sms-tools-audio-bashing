@@ -379,26 +379,24 @@ os.system('mv bashed.wav audio_files/major_chord_hard_bash.wav')
 os.system('rm filtered.wav')
 
 # spectrogram
-s1,fs1 = sf.read('audio_files/horns_vanilla.wav')
-s2,fs2 = sf.read('audio_files/horns_whacked.wav')
+s1,fs1 = sf.read('audio_files/saw_equal_simple_chord.wav')
+s2,fs2 = sf.read('audio_files/saw_equal_simple_bashed.wav')
 
-S1 = librosa.stft(s1, n_fft = 4096)
-S2 = librosa.stft(s2, n_fft = 4096)
+S1 = librosa.stft(s1, n_fft = 8192)
+S2 = librosa.stft(s2, n_fft = 8192)
 
 D1 = librosa.amplitude_to_db(np.abs(S1), ref=np.max)
 D2 = librosa.amplitude_to_db(np.abs(S2), ref=np.max)
 D3 = np.abs(S1-S2)
-freqs = librosa.fft_frequencies(sr=fs1, n_fft = 4096)
+freqs = librosa.fft_frequencies(sr=fs1, n_fft = 8192)
 P3 = librosa.perceptual_weighting(D3, freqs)
 
-f, (ax1, ax2, ax3) = plt.subplots(1, 3, sharey='row', figsize=(14,6))
+f, (ax1, ax2) = plt.subplots(1, 2, sharey='row', figsize=(14,6))
 librosa.display.specshow(D1, y_axis='log', x_axis='time', sr=fs1, ax=ax1)
-librosa.display.specshow(D2, y_axis='log', x_axis='time', sr=fs1, ax=ax2)
-librosa.display.specshow(D3, y_axis='log', x_axis='time', sr=fs1, ax=ax3)
+librosa.display.specshow(D3, y_axis='log', x_axis='time', sr=fs1, ax=ax2)
 
 ax1.set_title('Vanilla Signal')
-ax2.set_title('Whacked Signal')
-ax3.set_title('Signal Difference')
+ax2.set_title('Signal Difference After Frequency Bashing')
 
 f.tight_layout()
 plt.savefig('spect_difference.pdf')
