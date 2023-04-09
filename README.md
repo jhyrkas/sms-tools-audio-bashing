@@ -1,9 +1,19 @@
 sms-tools-audio-bashing
 =========
-Fork of sms-tools. This repo will be used for audio bashing, an exploration of roughness control in audio.
+Fork of sms-tools. This repo contains code for the frequency bashing and amplitude whacking algorithms for roughness control in mixes of audio files.
 sms-tools is used for sinusoidal analysis of audio files. Ideally, if sms-tools becomes installable as a library,
 this fork will cease to exist and the project will exist in its own repo that depends on the sms-tools library.
-See original sms-tools README below
+See original sms-tools README below to compile some of the code necessary to use sms-tools.
+
+After compiling sms-tools, the software for the audio bashing and whacking is contained in the audio_bashing subdirectory.
+Until a requirements.txt is setup, please make sure you have the following libraries installed:
+
+* librosa
+* matplotlib
+* numpy
+* resampy
+* scipy
+* soundfile
 
 ----------
 *ORIGINAL*
