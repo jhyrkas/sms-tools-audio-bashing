@@ -6,7 +6,7 @@ this fork will cease to exist and the project will exist in its own repo that de
 See original sms-tools README below to compile some of the code necessary to use sms-tools.
 
 After compiling sms-tools, the software for the audio bashing and whacking is contained in the audio_bashing subdirectory.
-Until a requirements.txt is setup, please make sure you have the following libraries installed:
+Until a requirements.txt is setup, please make sure you have the following python libraries installed:
 
 * librosa
 * matplotlib
