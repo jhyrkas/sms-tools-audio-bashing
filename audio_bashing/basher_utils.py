@@ -49,8 +49,8 @@ def calculate_roughness_vassilakis(f1,v1,f2,v2) :
     b2 = -5.75
     s1 = 0.0207
     s2 = 18.96
-    s = 0.24/(s1*min(f1,f2) + s2)
-    fdiff = abs(f1-f2)
+    s = 0.24/(s1*np.minimum(f1,f2) + s2)
+    fdiff = np.abs(f1-f2)
     Z = np.exp(b1*s*fdiff)-np.exp(b2*s*fdiff)
     return X*Y*Z
 
