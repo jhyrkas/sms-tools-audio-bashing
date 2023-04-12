@@ -23,6 +23,17 @@ def roughness_func_parncutt(f1,f2) :
     b_diff = abs(bu.hz_to_bark(f1) - bu.hz_to_bark(f2))
     return (np.exp(1)*b_diff*4 * np.exp(-b_diff*4))**2 if b_diff < 1.2 else 0
 
+def roughness_func_hutchinson(f1,f2) :
+    f_diff = np.abs(f1-f2)
+    f_mean = (f1+f2) / 2.0
+    b_diff = f_diff / (1.72*np.power(f_mean, 0.65))
+    r = np.power(np.exp(1)*b_diff*4 * np.exp(-b_diff*4),2)
+    if isinstance(r, np.ndarray) :
+        r[b_diff >= 1.2] = 0
+        return r
+    else :
+        return r if b_diff < 1.2 else 0
+
 def get_roughness_x_y(f1, f2) :
     x = roughness_func_exp(f1, f2)
     y = bu.calculate_roughness_sethares(f1, 1.0, f2, 1.0)
@@ -110,23 +121,27 @@ plt.savefig('roughness_difference.pdf')
 plt.savefig('roughness_difference.png')
 plt.clf()
 
+
 x = np.linspace(440, bu.bark_to_hz(bu.hz_to_bark(440) + 1.2), 500)
-y1 = bu.calculate_roughness_vassilakis(440, 1.0, x, 1.0)
-y2 = bu.calculate_roughness_sethares(440, 1.0, x, 1.0)
+max_seth = np.max(bu.calculate_roughness_sethares(440, 1.0, x, 1.0))
+max_vass = np.max(bu.calculate_roughness_vassilakis(440, 1.0, x, 1.0))
+
+y1 = bu.calculate_roughness_vassilakis(440, 0.9, x, 0.9)
+y2 = bu.calculate_roughness_sethares(440, 0.9, x, 0.9)
 y3 = bu.calculate_roughness_vassilakis(440, 1.0, x, 0.5)
 y4 = bu.calculate_roughness_sethares(440, 1.0, x, 0.5)
 
-y1p = y1 / np.max(y1)
-y2p = y2 / np.max(y2)
-y3p = y3 / np.max(y1)
-y4p = y4 / np.max(y2)
+y1p = y1 / max_vass
+y2p = y2 / max_seth
+y3p = y3 / max_vass
+y4p = y4 / max_seth
 
 f, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, sharey='row', sharex='col', figsize=(14,12))
 ax1.plot(x,y1p)
-ax1.set_title('Vassilakis: Roughness of two tones with amplitudes 1.0, 1.0')
+ax1.set_title('Vassilakis: Roughness of two tones with amplitudes 0.9, 0.9')
 ax1.set_ylim([0, 1.0])
 ax2.plot(x,y2p)
-ax2.set_title('Sethares: Roughness of two tones with amplitudes 1.0, 1.0')
+ax2.set_title('Sethares: Roughness of two tones with amplitudes 0.9, 0.9')
 ax2.set_ylim([0, 1.0])
 ax3.plot(x,y3p)
 ax3.set_title('Vassilakis: Roughness of two tones with amplitudes 1.0, 0.5')
@@ -134,8 +149,8 @@ ax3.set_ylim([0, 1.0])
 ax4.plot(x,y4p)
 ax4.set_title('Sethares: Roughness of two tones with amplitudes 1.0, 0.5')
 ax4.set_ylim([0, 1.0])
-ax3.set_xlabel('Difference in Modeled % Diff. CB')
-ax4.set_xlabel('Difference in Modeled % Diff. CB')
+ax3.set_xlabel('Frequency of second partial (first partial 440 Hz)')
+ax4.set_xlabel('Frequency of second partial (first partial 440 Hz)')
 
 ax1.set_ylabel('Roughness (unitless)')
 ax3.set_ylabel('Roughness (unitless)')
@@ -144,6 +159,58 @@ plt.savefig('roughness_vass.pdf')
 plt.savefig('roughness_vass.png')
 plt.clf()
 
+# masking
+f, (ax1, ax2) = plt.subplots(1, 2, sharey='row', figsize=(14,6))
+ax1.vlines(440, -70, -10, colors='red', label='Masking sinusoid')
+x = np.linspace(240, 740, 500)
+y = [-10-bu.get_masking_level_dB(440, f) for f in x]
+ax1.plot(x,y)
+ax1.set_xlim([240, 740])
+ax1.set_ylim([-50, -9])
+ax1.set_title('Masking curve (440 Hz, -10 dB)')
+ax1.set_xlabel('Frequency')
+ax1.set_ylabel('dB')
+ax1.legend(fontsize='x-large')
+
+ax2.vlines(880, -70, -10, colors='red', label='Masking sinusoid')
+x = np.linspace(680, 1080, 500)
+y = [-10-bu.get_masking_level_dB(880, f) for f in x]
+ax2.plot(x,y)
+ax2.set_xlim([680, 1080])
+ax2.set_ylim([-50, -9])
+ax2.set_title('Masking curve (880 Hz, -10 dB)')
+ax2.set_xlabel('Frequency')
+ax2.set_ylabel('dB')
+ax2.legend(fontsize='x-large')
+f.tight_layout()
+plt.savefig('masking_curves.pdf')
+plt.savefig('masking_curves.png')
+plt.clf()
+
+n1 = 440 * np.arange(1,21,2)
+n2 = 440 * (3/2) * np.arange(1,21,2)
+n3 = 440 * (5/3) * np.arange(1,21,2)
+r1 = 0
+for p1 in n1 :
+    for p2 in n2 :
+        r1 += roughness_func_hutchinson(p1,p2)
+
+for i in range(10) :
+    for j in range(i+1,10) :
+        r1 += roughness_func_hutchinson(n1[i], n1[j])
+        r1 += roughness_func_hutchinson(n2[i], n2[j])
+r2 = 0
+for p1 in n1 :
+    for p2 in n3 :
+        r2 += roughness_func_hutchinson(p1,p2)
+
+for i in range(10) :
+    for j in range(i+1,10) :
+        r2 += roughness_func_hutchinson(n1[i], n1[j])
+        r2 += roughness_func_hutchinson(n3[i], n3[j])
+
+print('Perfect fifth roughness: {r}'.format(r=r1))
+print('Perfect sixth roughness: {r}'.format(r=r2))
 
 '''
 # ----------------------
