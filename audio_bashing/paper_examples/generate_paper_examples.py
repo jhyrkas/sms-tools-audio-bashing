@@ -63,6 +63,7 @@ def get_vline_params(f_const, f_change, delta) :
 
     return lines_x, lines_ymin, lines_ymax, labels
 
+
 # getting audio files (might not be necessary)
 fs = 48000
 
@@ -81,12 +82,12 @@ ax1.set_title('Roughness of two sinusoids of same amplitude')
 ax1.set_xlabel('Modeled % Crit. Band difference')
 ax1.set_ylabel('Roughness (unitless)')
 
-ax2.vlines(440, -70, -10, colors='red', label='Masking sinusoid')
+ax2.vlines(440, 0, 70, colors='red', label='Masking sinusoid')
 x = np.linspace(350, 640, 500)
-y = [-10-bu.get_masking_level_dB(440, f) for f in x]
+y = [70-bu.get_masking_level_dB(440, f) for f in x]
 ax2.plot(x,y)
 ax2.set_xlim([350, 640])
-ax2.set_ylim([-50, -9])
+ax2.set_ylim([30, 71])
 ax2.set_title('Masking curve (440 Hz, -10 dB)')
 ax2.set_xlabel('Frequency')
 ax2.set_ylabel('dB')
@@ -175,13 +176,16 @@ db2 = -30
 a1 = 10**(db1/20)
 a2 = 10**(db2/20)
 
+# for plotting in positive dB
+plot_offset = 60
+
 # masking curve
-ax1.vlines([f1,f2], [-70,-70], [db1,db2], colors='red', label='Original amplitudes')
+ax1.vlines([f1,f2], [-70+plot_offset,-70+plot_offset], [db1+plot_offset,db2+plot_offset], colors='red', label='Original amplitudes')
 x = np.linspace(400, 550, 250)
-y = [db1-bu.get_masking_level_dB(f1, f) for f in x]
+y = [db1+plot_offset-bu.get_masking_level_dB(f1, f) for f in x]
 ax1.plot(x,y, label='Original masking curve')
 ax1.set_xlim([400, 550])
-ax1.set_ylim([-40, -19])
+ax1.set_ylim([-40+plot_offset, -19+plot_offset])
 ax1.set_xlabel('Frequency')
 ax1.set_ylabel('dB')
 
@@ -189,9 +193,9 @@ new_a1, new_a2 = bu.whack_amp(f1, a1, f2, a2, perc_move=1.0, consonance = True)
 new_db1 = 20*np.log10(new_a1)
 new_db2 = 20*np.log10(new_a2)
 x_p = np.linspace(f1, f2, 250)
-y_p = [new_db1-bu.get_masking_level_dB(f1, f) for f in x_p]
+y_p = [new_db1+plot_offset-bu.get_masking_level_dB(f1, f) for f in x_p]
 ax1.plot(x_p,y_p, 'g:', label='New masking curve')
-ax1.scatter([f1,f2], [new_db1, new_db2], c='black', marker='x', label='Whacked amplitudes')
+ax1.scatter([f1,f2], [new_db1+plot_offset, new_db2+plot_offset], c='black', marker='x', label='Whacked amplitudes')
 ax1.set_title('Amplitude whacking - lower freq. louder'.format(f1=f1))
 
 ax1.legend(fontsize='x-large')
@@ -203,21 +207,21 @@ db2 = -20
 a1 = 10**(db1/20)
 a2 = 10**(db2/20)
 
-ax2.vlines([f1,f2], [-70,-70], [db1,db2], colors='red', label='Original amplitudes')
+ax2.vlines([f1,f2], [-70+plot_offset,-70+plot_offset], [db1+plot_offset,db2+plot_offset], colors='red', label='Original amplitudes')
 x = np.linspace(850, 1050, 250)
-y = [db2-bu.get_masking_level_dB(f2, f) for f in x]
+y = [db2+plot_offset-bu.get_masking_level_dB(f2, f) for f in x]
 ax2.plot(x,y, label='Original masking curve')
 ax2.set_xlim([850, 1050])
-ax2.set_ylim([-40, -19])
+ax2.set_ylim([-40+plot_offset, -19+plot_offset])
 ax2.set_xlabel('Frequency')
 
 new_a1, new_a2 = bu.whack_amp(f1, a1, f2, a2, perc_move=1.0, consonance = True)
 new_db1 = 20*np.log10(new_a1)
 new_db2 = 20*np.log10(new_a2)
 x_p = np.linspace(f1, f2, 250)
-y_p = [new_db2-bu.get_masking_level_dB(f2, f) for f in x_p]
+y_p = [new_db2+plot_offset-bu.get_masking_level_dB(f2, f) for f in x_p]
 ax2.plot(x_p,y_p, 'g:', label='New masking curve')
-ax2.scatter([f1,f2], [new_db1, new_db2], c='black', marker='x', label='Whacked amplitudes')
+ax2.scatter([f1,f2], [new_db1+plot_offset, new_db2+plot_offset], c='black', marker='x', label='Whacked amplitudes')
 ax2.set_title('Amplitude whacking - higher freq. louder'.format(f1=f1))
 ax2.legend(fontsize='x-large')
 f.tight_layout()
@@ -276,10 +280,16 @@ os.system(mv_cmd.format(in_name='whacked.wav', out_name='sine880_910_whack_100.w
 os.system('rm vanilla.wav')
 
 # tuning examples
+print('TUNING EXAMPLES')
+print('---------------')
 os.system('python3 ../audio_basher.py -nsines=20 -bw_percent_low=0.001 -bw_percent_high=0.35 --normalize --consonance audio_files/saw_root.wav audio_files/saw_third_equal.wav audio_files/saw_fifth_equal.wav')
 os.system('mv vanilla.wav audio_files/saw_equal_simple_chord.wav')
 os.system('rm filtered.wav')
 os.system('mv bashed.wav audio_files/saw_equal_simple_bashed.wav')
+os.system('python3 ../audio_whacker.py -nsines=20 -bw_percent_low=0.001 -bw_percent_high=0.35 --normalize --consonance audio_files/saw_root.wav audio_files/saw_third_equal.wav audio_files/saw_fifth_equal.wav')
+os.system('rm vanilla.wav')
+os.system('mv whacked.wav audio_files/saw_equal_simple_whacked.wav')
+print('---------------')
 os.system('python3 ../audio_basher.py -nsines=20 -bw_percent_low=0.001 -bw_percent_high=0.35 --normalize --consonance audio_files/saw_root.wav audio_files/saw_third_just.wav audio_files/saw_fifth_just.wav')
 os.system('mv vanilla.wav audio_files/saw_just_simple_chord.wav')
 os.system('rm filtered.wav')
@@ -344,25 +354,121 @@ os.system('mv vanilla.wav audio_files/major_chord_vanilla.wav')
 os.system('mv bashed.wav audio_files/major_chord_hard_bash.wav')
 os.system('rm filtered.wav')
 
-# spectrogram
-s1,fs1 = sf.read('audio_files/saw_equal_simple_chord.wav')
-s2,fs2 = sf.read('audio_files/saw_equal_simple_bashed.wav')
+# spectrogram theoretical
 
-S1 = librosa.stft(s1, n_fft = 8192)
-S2 = librosa.stft(s2, n_fft = 8192)
+def saw_params(f0) :
+    amp = 1.0
+    freqs = []
+    amps = []
+    for h in range(1,11) :
+        freqs.append(h*f0)
+        amps.append(1/h * amp)
+    return freqs, amps
 
-D1 = librosa.amplitude_to_db(np.abs(S1), ref=np.max)
-D2 = librosa.amplitude_to_db(np.abs(S2), ref=np.max)
-D3 = np.abs(S1-S2)
-freqs = librosa.fft_frequencies(sr=fs1, n_fft = 8192)
-P3 = librosa.perceptual_weighting(D3, freqs)
+srf,sra = saw_params(220)
+stf,sta = saw_params(220*(2**(4/12)))
+sff,sfa = saw_params(220*(2**(7/12)))
+vanilla_freqs = []
+vanilla_amps = []
+for i in range(10) :
+    vanilla_freqs.append(srf[i])
+    vanilla_amps.append(sra[i])
+for i in range(10) :
+    vanilla_freqs.append(stf[i])
+    vanilla_amps.append(sta[i])
+for i in range(10) :
+    vanilla_freqs.append(sff[i])
+    vanilla_amps.append(sfa[i])
 
-f, (ax1, ax2) = plt.subplots(1, 2, sharey='row', figsize=(14,6))
-librosa.display.specshow(D1, y_axis='log', x_axis='time', sr=fs1, ax=ax1, hop_length=8192//4)
-librosa.display.specshow(D3, y_axis='log', x_axis='time', sr=fs1, ax=ax2, hop_length=8192//4)
+bashed_freqs = vanilla_freqs.copy()
+whacked_freqs = vanilla_freqs.copy()
+bashed_amps = vanilla_amps.copy()
+whacked_amps = vanilla_amps.copy()
 
-ax1.set_title('Vanilla Signal')
-ax2.set_title('Signal Difference After Frequency Bashing')
+#bashed_freqs[3] = 831.76 # root harmonic 4
+#bashed_freqs[24] = 1319.07 # third harmonic 5
+#bashed_freqs[4] = 1108.9 # root harmonic 5
+
+bashed_freqs[3] = bu.bash_freq(vanilla_freqs[3], vanilla_freqs[12], 0.03, 0.35, False)
+bashed_freqs[14] = bu.bash_freq(vanilla_freqs[14], vanilla_freqs[23], 0.03, 0.35, False)
+bashed_freqs[4] = bu.bash_freq(vanilla_freqs[4], vanilla_freqs[13], 0.03, 0.35, False)
+
+original_freqs1 = np.array([vanilla_freqs[3], vanilla_freqs[14], vanilla_freqs[4]]).copy()
+original_amps1 = np.array([vanilla_amps[3], vanilla_amps[14], vanilla_amps[4]]).copy()
+
+whacked_amps[3], whacked_amps[12] = bu.whack_amp(vanilla_freqs[3], vanilla_amps[3], vanilla_freqs[12], vanilla_amps[12], 1.0)
+whacked_amps[14], whacked_amps[23] = bu.whack_amp(vanilla_freqs[14], vanilla_amps[14], vanilla_freqs[23], vanilla_amps[23], 1.0)
+whacked_amps[4], whacked_amps[13] = bu.whack_amp(vanilla_freqs[4], vanilla_amps[4], vanilla_freqs[13], vanilla_amps[13], 1.0)
+
+print(vanilla_amps[3])
+print(vanilla_amps[12])
+print(bu.whack_amp(vanilla_freqs[3], vanilla_amps[3], vanilla_freqs[12], vanilla_amps[12], 1.0))
+print(whacked_amps[3])
+print(whacked_amps[12])
+
+original_freqs2 = np.array([vanilla_freqs[3], vanilla_freqs[12], vanilla_freqs[14], vanilla_freqs[23], vanilla_freqs[4], vanilla_freqs[13]]).copy()
+original_amps2 = np.array([vanilla_amps[3], vanilla_amps[12], vanilla_amps[14], vanilla_amps[23], vanilla_amps[4], vanilla_amps[13]]).copy()
+
+vanilla_freqs = np.array(vanilla_freqs)
+vanilla_amps = np.array(vanilla_amps)
+whacked_freqs = np.array(whacked_freqs)
+whacked_amps = np.array(whacked_amps)
+bashed_freqs = np.array(bashed_freqs)
+bashed_amps = np.array(bashed_amps)
+
+vanilla_amps = 20*np.log10(vanilla_amps)
+whacked_amps = 20*np.log10(whacked_amps)
+bashed_amps = 20*np.log10(bashed_amps)
+
+#original_amps1 = (20*np.log10(original_amps1)) - np.min(vanilla_amps)
+#original_amps2 = (20*np.log10(original_amps2)) - np.min(vanilla_amps)
+#vanilla_amps -= np.min(vanilla_amps)
+#bashed_amps -= np.min(vanilla_amps)
+#whacked_amps -= np.min(vanilla_amps)
+original_amps1 = (20*np.log10(original_amps1)) + 40
+original_amps2 = (20*np.log10(original_amps2)) + 40
+vanilla_amps += 40
+bashed_amps += 40
+whacked_amps += 40
+
+sort_order = np.argsort(vanilla_freqs)
+vanilla_freqs = vanilla_freqs[sort_order]
+bashed_freqs = bashed_freqs[sort_order]
+whacked_freqs = whacked_freqs[sort_order]
+vanilla_amps = vanilla_amps[sort_order]
+bashed_amps = bashed_amps[sort_order]
+whacked_amps = whacked_amps[sort_order]
+
+f, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(14,6), sharey='row')
+ax1.stem(vanilla_freqs, vanilla_amps)
+ax2.stem(original_freqs1, original_amps1, linefmt='r--', markerfmt='x',label='original frequencies')
+ax2.stem(bashed_freqs, bashed_amps)
+ax3.stem(original_freqs2, original_amps2, linefmt='r--', markerfmt='x',label='original amplitudes')
+ax3.stem(whacked_freqs, whacked_amps)
+ax1.set_ylabel('dB')
+#ax2.set_ylabel('dB')
+#ax3.set_ylabel('dB')
+ax1.set_xlabel('Frequency (Hz)')
+ax2.set_xlabel('Frequency (Hz)')
+ax3.set_xlabel('Frequency (Hz)')
+ax1.set_xlim([200,3500])
+#ax1.set_ylim([0,75])
+ax2.set_xlim([800,1400])
+ax3.set_xlim([800,1400])
+#ax2.set_ylim([3,11])
+#ax3.set_ylim([3,11])
+#ax1.set_xscale('log')
+#ax2.set_xscale('log')
+#ax3.set_xscale('log')
+#ax1.set_xticks(freqs)
+#ax2.set_xticks(freqs)
+#ax3.set_xticks(freqs)
+ax2.legend()
+ax3.legend()
+
+ax1.set_title('Spectrum of original signal')
+ax2.set_title('Spectrum of bashed signal')
+ax3.set_title('Spectrum of whacked signal')
 
 f.tight_layout()
 plt.savefig('spect_difference.pdf')
