@@ -17,12 +17,34 @@ if not os.path.exists('audio_files/sin440_neg20.wav') :
     sys.exit(1)
 
 def roughness_func_exp(f1,f2) :
-    return (0.24 / (0.021 * min(f1,f2) + 19)) * abs(f1-f2)
+    return (0.24 / (0.021 * np.minimum(f1,f2) + 19)) * np.abs(f1-f2)
 
 def get_roughness_x_y(f1, f2) :
     x = roughness_func_exp(f1, f2)
     y = bu.calculate_roughness_sethares(f1, 1.0, f2, 1.0)
     return x,y
+
+def get_cbdist_erb1(f1,f2) :
+    f1_khz = f1/1000
+    f1_erb_hz = 24.7 * (4.37*f1_khz + 1)
+    return (f2-f1) / (2*f1_erb_hz)
+
+def get_cbdist_erb2(f1,f2) :
+    f1_khz = f1/1000
+    f1_erb_hz = 6.23*(f1_khz**2) + 93.39*f1_khz + 28.52
+    f2_khz = f2/1000
+    f2_erb_hz = 6.23*(f2_khz**2) + 93.39*f2_khz + 28.52
+    return np.abs(f2-f1) / (f1_erb_hz+f2_erb_hz)
+
+def get_bark_distance_wang(f1, f2) :
+    b_f1 = 6*np.arcsinh(f1/600)
+    b_f2 = 6*np.arcsinh(f2/600)
+    return np.abs(b_f1-b_f2)
+
+def get_bark_distance_zwicker(f1, f2) :
+    b_f1 = 13*np.arctan(0.00076*f1) + 3.5*np.arctan(np.power(f1/7500, 2))
+    b_f2 = 13*np.arctan(0.00076*f2) + 3.5*np.arctan(np.power(f2/7500, 2))
+    return np.abs(b_f1-b_f2)
 
 def get_vline_params(f_const, f_change, delta) :
     lines_x = []
@@ -95,6 +117,73 @@ ax2.legend(fontsize='x-large')
 f.tight_layout()
 plt.savefig('equations.pdf')
 plt.savefig('equations.png')
+plt.clf()
+
+# new sethares plot
+f, (ax1, ax2) = plt.subplots(1, 2, figsize=(14,6), sharey='row')
+base_fs = [125, 250, 500, 1000, 2000]
+for i in range(4,-1,-1) :
+    x_log = np.logspace(0, 1, 500, base=2.0)
+    y = bu.calculate_roughness_sethares(base_fs[i], 1.0, x_log*base_fs[i],1.0)
+    ax1.plot(x_log,y, label = 'Base freq: {b}'.format(b=base_fs[i]))
+ax1.legend()
+ax1.set_title('Sethares diss. as function of interval')
+ax1.set_xlabel('Interval Ratio')
+ax1.set_ylabel('Roughness (unitless)')
+# modeled CB distance
+for i in range(4,-1,-1) :
+    x_log = np.logspace(0, np.log2(3/2), 500, base=2.0)
+    new_x = roughness_func_exp(base_fs[i], x_log*base_fs[i])
+    y = np.exp(-3.5*new_x) - np.exp(-5.75*new_x)
+    ax2.plot(new_x,y, label = 'Base freq: {b}'.format(b=base_fs[i]))
+ax2.legend()
+ax2.set_title('Sethares diss. as function of modeled CB distance')
+ax2.set_xlabel('Sethares exponent (f1,f2)')
+ax2.set_ylabel('Roughness (unitless)')
+f.tight_layout()
+plt.savefig('sethares_axes.png')
+plt.savefig('sethares_axes.pdf')
+plt.clf()
+
+base_fs = [125, 250, 500, 1000, 2000, 4000, 8000]
+f, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(11,11), sharey='row', sharex='col')
+# different exponents
+for i in range(7) :
+    upper_freqs = np.linspace(base_fs[i], bu.bark_to_hz(bu.hz_to_bark(base_fs[i]) + 1), 500)
+    # bark
+    x_bark = bu.get_bark_diff(base_fs[i], upper_freqs)
+    # erb 1
+    y_erb1 = get_cbdist_erb1(base_fs[i],upper_freqs)
+    ax1.plot(x_bark,y_erb1,label = 'ERB diff, base freq: {b}'.format(b=base_fs[i]))
+    # erb 2
+    y_erb2 = get_cbdist_erb2(base_fs[i],upper_freqs)
+    ax2.plot(x_bark,y_erb2,label = 'ERB diff, base freq: {b}'.format(b=base_fs[i]))
+    # seth
+    y_seth = roughness_func_exp(base_fs[i], upper_freqs)
+    ax3.plot(x_bark,y_seth,label = 'Seth exp, base freq: {b}'.format(b=base_fs[i]))
+    # other bark
+    y_bark = get_bark_distance_zwicker(base_fs[i], upper_freqs)
+    ax4.plot(x_bark,y_bark,label = 'Bark diff (Z), base freq: {b}'.format(b=base_fs[i]))
+ax1.plot(x_bark, x_bark, 'k--', label='y=Bark diff (T)')
+ax2.plot(x_bark, x_bark, 'k--', label='y=Bark diff (T)')
+ax3.plot(x_bark, x_bark, 'k--', label='y=Bark diff (T)')
+ax4.plot(x_bark, x_bark, 'k--', label='y=Bark diff (T)')
+ax1.legend()
+ax2.legend()
+ax3.legend()
+ax4.legend()
+ax1.set_title('Distance in ERB (Linear) up to 1 Bark (Traunmuller) Away')
+ax2.set_title('Distance in ERB (Quadratic) up to 1 Bark (Traunmuller) Away')
+ax3.set_title('Distance in Sethares Exponent up to 1 Bark (Traunmuller) Away')
+ax4.set_title('Distance in Bark (Zwicker) up to 1 Bark (Traunmuller) Away')
+ax3.set_xlabel('Distance in Barks')
+ax4.set_xlabel('Distance in Barks')
+ax1.set_ylabel('Modeled difference')
+ax3.set_ylabel('Modeled difference')
+
+f.tight_layout()
+plt.savefig('critical_band_diffs.png')
+plt.savefig('critical_band_diffs.pdf')
 plt.clf()
 
 # ----------------------

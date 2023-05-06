@@ -8,7 +8,7 @@ def bark_to_hz(z) :
     return (1960*(z+0.53)) / (26.28-z)
 
 def get_bark_diff(f1,f2) :
-    return abs(hz_to_bark(f1) - hz_to_bark(f2))
+    return np.abs(hz_to_bark(f1) - hz_to_bark(f2))
 
 # get the difference in Hz around a frequency (i.e. if we are in the range where a critical band is
 # around 100 Hz, bw_percent_low = 0.1 bw_percent_high = 0.35 should return ~ (10, 35)
