@@ -95,13 +95,13 @@ s2,fs2 = librosa.core.load('audio_files/sin470_neg30.wav', sr=fs)
 # ----------------------
 # EQUATION FIGURES
 # ----------------------
-f, (ax1, ax2) = plt.subplots(1, 2, figsize=(14,6))
+f, (ax1, ax2) = plt.subplots(1, 2, figsize=(12,3))
 # dissonance function
 x = np.linspace(0,1.2,500)
 y = np.exp(-3.5*x) - np.exp(-5.75*x)
 ax1.plot(x,y)
 ax1.set_title('Roughness of two sinusoids of same amplitude')
-ax1.set_xlabel('Modeled % Crit. Band difference')
+ax1.set_xlabel('Estimated CB Difference')
 ax1.set_ylabel('Roughness (unitless)')
 
 ax2.vlines(440, 0, 70, colors='red', label='Masking sinusoid')
@@ -110,7 +110,7 @@ y = [70-bu.get_masking_level_dB(440, f) for f in x]
 ax2.plot(x,y)
 ax2.set_xlim([350, 640])
 ax2.set_ylim([30, 71])
-ax2.set_title('Masking curve (440 Hz, -10 dB)')
+ax2.set_title('Masking curve (440 Hz, 70 dB)')
 ax2.set_xlabel('Frequency')
 ax2.set_ylabel('dB')
 ax2.legend(fontsize='x-large')
@@ -192,7 +192,7 @@ plt.clf()
 
 # plot 1
 
-f, (ax1, ax2) = plt.subplots(1, 2, sharey='row', figsize=(14,6))
+f, (ax1, ax2) = plt.subplots(1, 2, sharey='row', figsize=(14,4))
 
 #ax1 = plt.subplot(1,2,1)
 # dissonance function
@@ -222,7 +222,7 @@ ax1.annotate('Allowable range in Barks', xy=(0.336, 0.70), xytext=(0.336, 0.80),
 #           linestyles=['solid', 'dashed', 'dashdot', 'dotted'],
 #           label = ['orig', 'consonant', 'dissonant', 'hard bashed'])
 ax1.set_title('Frequency bashing - base: {f1} Hz'.format(f1=f1))
-ax1.set_xlabel('Modeled % CB difference')
+ax1.set_xlabel('Estimated CB distance (2)')
 ax1.set_ylabel('Roughness (unitless)')
 ax1.legend(fontsize='x-large')
 
@@ -243,7 +243,7 @@ for i in range(4) :
                colors=colors[i], linestyles=linestyles[i], label=labels[i])
 
 ax2.set_title('Frequency bashing - base: {f1} Hz'.format(f1=f1))
-ax2.set_xlabel('Modeled % CB difference')
+ax2.set_xlabel('Estimated CB distance (2)')
 ax2.legend(fontsize='x-large')
 ax2.annotate('Allowable range in Barks', xy=(0.336, 0.70), xytext=(0.336, 0.80), xycoords='axes fraction', 
             fontsize=12.0, ha='center', va='bottom',
@@ -257,7 +257,7 @@ plt.clf()
 # ----------------------
 # WHACKING FIGURES
 # ----------------------
-f, (ax1, ax2) = plt.subplots(1, 2, sharey='row', figsize=(14,6))
+f, (ax1, ax2) = plt.subplots(1, 2, sharey='row', figsize=(12,4))
 f1 = 440
 f2 = 470
 db1 = -20
