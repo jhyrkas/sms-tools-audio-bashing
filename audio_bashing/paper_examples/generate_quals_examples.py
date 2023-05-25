@@ -23,6 +23,12 @@ def roughness_func_parncutt(f1,f2) :
     b_diff = abs(bu.hz_to_bark(f1) - bu.hz_to_bark(f2))
     return (np.exp(1)*b_diff*4 * np.exp(-b_diff*4))**2 if b_diff < 1.2 else 0
 
+def pl_parameter_sethares(x) :
+    return np.exp(-3.5*x) - np.exp(-5.75*x)
+
+def pl_parameter_parncutt(x) :
+    return np.power(np.exp(1)*(x/0.25)*np.exp(-x/0.25), 2)
+
 def roughness_func_hutchinson(f1,f2) :
     f_diff = np.abs(f1-f2)
     f_mean = (f1+f2) / 2.0
@@ -87,22 +93,22 @@ s2,fs2 = librosa.core.load('audio_files/sin470_neg30.wav', sr=fs)
 # ----------------------
 # EQUATION FIGURES
 # ----------------------
-f, (ax1, ax2) = plt.subplots(1, 2, figsize=(14,6))
+f, (ax1, ax2) = plt.subplots(1, 2, figsize=(12,4))
 # dissonance function
 x = np.linspace(0,1.2,500)
-y1 = np.exp(-3.5*x) - np.exp(-5.75*x)
+y1 = pl_parameter_sethares(x)
 y1p = y1 / np.max(y1)
 ax1.plot(x,y1p)
-ax1.set_title('Roughness of two sinusoids of same amplitude (Sethares)')
-ax1.set_xlabel('Modeled % Crit. Band difference')
-ax1.set_ylabel('Roughness (unitless)')
+ax1.set_title("Sethares's Model of Plomp and Levelt")
+ax1.set_xlabel('x (~Critical Bandwidth)')
+ax1.set_ylabel('Dissonance')
 
-y2 = np.power(np.exp(1)*x*4 * np.exp(-x*4), 2)
+y2 = pl_parameter_parncutt(x)
 y2p = y2 / np.max(y2)
 ax2.plot(x,y2p)
-ax2.set_title('Roughness of two sinusoids of same amplitude (Parncutt)')
-ax2.set_xlabel('Difference in Barks')
-ax2.set_ylabel('Roughness (unitless)')
+ax2.set_title("Parncutt's Model of Plomp and Levelt")
+ax2.set_xlabel('x (~Critical Bandwidth)')
+ax2.set_ylabel('Dissonance')
 
 f.tight_layout()
 plt.savefig('roughness_equations.pdf')
@@ -136,7 +142,7 @@ y2p = y2 / max_seth
 y3p = y3 / max_vass
 y4p = y4 / max_seth
 
-f, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, sharey='row', sharex='col', figsize=(14,12))
+f, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, sharey='row', sharex='col', figsize=(11,9))
 ax1.plot(x,y1p)
 ax1.set_title('Vassilakis: Roughness of two tones with amplitudes 0.9, 0.9')
 ax1.set_ylim([0, 1.0])
@@ -160,25 +166,25 @@ plt.savefig('roughness_vass.png')
 plt.clf()
 
 # masking
-f, (ax1, ax2) = plt.subplots(1, 2, sharey='row', figsize=(14,6))
-ax1.vlines(440, -70, -10, colors='red', label='Masking sinusoid')
-x = np.linspace(240, 740, 500)
-y = [-10-bu.get_masking_level_dB(440, f) for f in x]
+f, (ax1, ax2) = plt.subplots(1, 2, sharey='row', figsize=(12,4))
+ax1.vlines(440, 0, 40, colors='red', label='Masking sinusoid')
+x = np.linspace(400, 550, 500)
+y = [40-bu.get_masking_level_dB(440, f) for f in x]
 ax1.plot(x,y)
-ax1.set_xlim([240, 740])
-ax1.set_ylim([-50, -9])
-ax1.set_title('Masking curve (440 Hz, -10 dB)')
+ax1.set_xlim([400, 550])
+ax1.set_ylim([20, 41])
+ax1.set_title('Masking curve (440 Hz, 40 dB)')
 ax1.set_xlabel('Frequency')
 ax1.set_ylabel('dB')
 ax1.legend(fontsize='x-large')
 
-ax2.vlines(880, -70, -10, colors='red', label='Masking sinusoid')
-x = np.linspace(680, 1080, 500)
-y = [-10-bu.get_masking_level_dB(880, f) for f in x]
+ax2.vlines(910, 0, 40, colors='red', label='Masking sinusoid')
+x = np.linspace(870, 1020, 500)
+y = [40-bu.get_masking_level_dB(910, f) for f in x]
 ax2.plot(x,y)
-ax2.set_xlim([680, 1080])
-ax2.set_ylim([-50, -9])
-ax2.set_title('Masking curve (880 Hz, -10 dB)')
+ax2.set_xlim([870, 1020])
+ax2.set_ylim([20, 41])
+ax2.set_title('Masking curve (910 Hz, 40 dB)')
 ax2.set_xlabel('Frequency')
 ax2.set_ylabel('dB')
 ax2.legend(fontsize='x-large')
@@ -212,7 +218,6 @@ for i in range(10) :
 print('Perfect fifth roughness: {r}'.format(r=r1))
 print('Perfect sixth roughness: {r}'.format(r=r2))
 
-'''
 # ----------------------
 # BASHING FIGURES
 # ----------------------
@@ -284,7 +289,7 @@ plt.clf()
 # ----------------------
 # WHACKING FIGURES
 # ----------------------
-f, (ax1, ax2) = plt.subplots(1, 2, sharey='row', figsize=(14,6))
+f, (ax1, ax2) = plt.subplots(1, 2, sharey='row', figsize=(12,4))
 f1 = 440
 f2 = 470
 db1 = -20
@@ -292,57 +297,57 @@ db2 = -30
 a1 = 10**(db1/20)
 a2 = 10**(db2/20)
 
+# for plotting in positive dB
+plot_offset = 60
+
 # masking curve
-ax1.vlines([f1,f2], [-70,-70], [db1,db2], colors='red', label='Original amplitudes')
+ax1.vlines([f1,f2], [-70+plot_offset,-70+plot_offset], [db1+plot_offset,db2+plot_offset], colors='red', label='Original amplitudes')
 x = np.linspace(400, 550, 250)
-y = [db1-bu.get_masking_level_dB(f1, f) for f in x]
+y = [db1+plot_offset-bu.get_masking_level_dB(f1, f) for f in x]
 ax1.plot(x,y, label='Original masking curve')
 ax1.set_xlim([400, 550])
-ax1.set_ylim([-40, -19])
+ax1.set_ylim([-40+plot_offset, -19+plot_offset])
 ax1.set_xlabel('Frequency')
 ax1.set_ylabel('dB')
-
+    
 new_a1, new_a2 = bu.whack_amp(f1, a1, f2, a2, perc_move=1.0, consonance = True)
-new_db1 = 20*np.log10(new_a1)
+new_db1 = 20*np.log10(new_a1) 
 new_db2 = 20*np.log10(new_a2)
 x_p = np.linspace(f1, f2, 250)
-y_p = [new_db1-bu.get_masking_level_dB(f1, f) for f in x_p]
+y_p = [new_db1+plot_offset-bu.get_masking_level_dB(f1, f) for f in x_p]
+ax1.scatter([f1,f2], [new_db1+plot_offset, new_db2+plot_offset], c='black', marker='x', label='Whacked amplitudes')
 ax1.plot(x_p,y_p, 'g:', label='New masking curve')
-ax1.scatter([f1,f2], [new_db1, new_db2], c='black', marker='x', label='Whacked amplitudes')
 ax1.set_title('Amplitude whacking - lower freq. louder'.format(f1=f1))
 
 ax1.legend(fontsize='x-large')
-
+    
 f1 = 880
 f2 = 910
 db1 = -30
 db2 = -20
 a1 = 10**(db1/20)
 a2 = 10**(db2/20)
-
-ax2.vlines([f1,f2], [-70,-70], [db1,db2], colors='red', label='Original amplitudes')
-x = np.linspace(850, 1050, 250)
-y = [db2-bu.get_masking_level_dB(f2, f) for f in x]
+    
+ax2.vlines([f1,f2], [-70+plot_offset,-70+plot_offset], [db1+plot_offset,db2+plot_offset], colors='red', label='Original amplitudes')
+x = np.linspace(870, 1020, 250)
+y = [db2+plot_offset-bu.get_masking_level_dB(f2, f) for f in x]
 ax2.plot(x,y, label='Original masking curve')
-ax2.set_xlim([850, 1050])
-ax2.set_ylim([-40, -19])
+ax2.set_xlim([870, 1020])
+ax2.set_ylim([-40+plot_offset, -19+plot_offset])
 ax2.set_xlabel('Frequency')
 
 new_a1, new_a2 = bu.whack_amp(f1, a1, f2, a2, perc_move=1.0, consonance = True)
 new_db1 = 20*np.log10(new_a1)
 new_db2 = 20*np.log10(new_a2)
 x_p = np.linspace(f1, f2, 250)
-y_p = [new_db2-bu.get_masking_level_dB(f2, f) for f in x_p]
+y_p = [new_db2+plot_offset-bu.get_masking_level_dB(f2, f) for f in x_p]
+ax2.scatter([f1,f2], [new_db1+plot_offset, new_db2+plot_offset], c='black', marker='x', label='Whacked amplitudes')
 ax2.plot(x_p,y_p, 'g:', label='New masking curve')
-ax2.scatter([f1,f2], [new_db1, new_db2], c='black', marker='x', label='Whacked amplitudes')
 ax2.set_title('Amplitude whacking - higher freq. louder'.format(f1=f1))
 ax2.legend(fontsize='x-large')
 f.tight_layout()
-
-# for plotting reduction in roughness
 plt.savefig('amp_whacking.pdf')
 plt.savefig('amp_whacking.png')
-plt.clf()
 
 bash_cmd_sine = 'python3 ../audio_basher.py -nsines=1 -bw_percent_low=0.05 -bw_percent_high=0.35 {d_option} {h_option} audio_files/sin440_neg20.wav audio_files/sin470_neg30.wav'
 mv_cmd = 'mv {in_name} audio_files/{out_name}'
@@ -511,6 +516,3 @@ plt.savefig('spect_difference2.pdf')
 plt.savefig('spect_difference2.png')
 plt.clf()
 
-
-
-'''

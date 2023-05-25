@@ -24,17 +24,9 @@ def get_roughness_x_y(f1, f2) :
     y = bu.calculate_roughness_sethares(f1, 1.0, f2, 1.0)
     return x,y
 
-def get_cbdist_erb1(f1,f2) :
-    f1_khz = f1/1000
-    f1_erb_hz = 24.7 * (4.37*f1_khz + 1)
-    return (f2-f1) / (2*f1_erb_hz)
-
-def get_cbdist_erb2(f1,f2) :
-    f1_khz = f1/1000
-    f1_erb_hz = 6.23*(f1_khz**2) + 93.39*f1_khz + 28.52
-    f2_khz = f2/1000
-    f2_erb_hz = 6.23*(f2_khz**2) + 93.39*f2_khz + 28.52
-    return np.abs(f2-f1) / (f1_erb_hz+f2_erb_hz)
+def get_erb(f) :
+    f_khz = f/1000
+    return 6.23*np.power(f_khz,2) + 93.39*f_khz + 28.52
 
 def get_bark_distance_wang(f1, f2) :
     b_f1 = 6*np.arcsinh(f1/600)
@@ -46,34 +38,47 @@ def get_bark_distance_zwicker(f1, f2) :
     b_f2 = 13*np.arctan(0.00076*f2) + 3.5*np.arctan(np.power(f2/7500, 2))
     return np.abs(b_f1-b_f2)
 
+def cbw_hutchinson(f) :
+    return 1.72 * np.power(f, 0.65)
+
+def get_cbw_diff_hutchinson(f1, f2) :
+    return (np.abs(f1-f2)) / cbw_hutchinson((f1+f2)*0.5)
+
+def get_cbw_diff_erb(f1, f2) :
+    return (np.abs(f1-f2)) / get_erb((f1+f2)*0.5)
+
 def get_vline_params(f_const, f_change, delta) :
     lines_x = []
     lines_ymin = []
     lines_ymax = []
     # starting roughness
     x,y = get_roughness_x_y(f_const, f_change)
-    lines_x.append(x)
+    #lines_x.append(x)
+    lines_x.append(f_change)
     lines_ymin.append(0)
     lines_ymax.append(y)
 
     # maximum consonance
     cons_freq = bu.bash_freq(f_change, f_const, 0.05, 0.35, hard_bash=False, delta=delta, consonance = True)
     x,y = get_roughness_x_y(f_const, cons_freq)
-    lines_x.append(x)
+    #lines_x.append(x)
+    lines_x.append(cons_freq)
     lines_ymin.append(0)
     lines_ymax.append(y)
 
     # maximum dissonance
     diss_freq = bu.bash_freq(f_change, f_const, 0.05, 0.35, hard_bash=False, delta=delta, consonance = False)
     x,y = get_roughness_x_y(f_const, diss_freq)
-    lines_x.append(x)
+    #lines_x.append(x)
+    lines_x.append(diss_freq)
     lines_ymin.append(0)
     lines_ymax.append(y)
 
     # hard bashing
     hard_freq = bu.bash_freq(f_change, f_const, 0.05, 0.35, hard_bash=True, delta=delta, consonance = True)
     x,y = get_roughness_x_y(f_const, hard_freq)
-    lines_x.append(x)
+    #lines_x.append(x)
+    lines_x.append(hard_freq)
     lines_ymin.append(0)
     lines_ymax.append(y)
 
@@ -96,13 +101,18 @@ s2,fs2 = librosa.core.load('audio_files/sin470_neg30.wav', sr=fs)
 # EQUATION FIGURES
 # ----------------------
 f, (ax1, ax2) = plt.subplots(1, 2, figsize=(12,3))
+
 # dissonance function
-x = np.linspace(0,1.2,500)
-y = np.exp(-3.5*x) - np.exp(-5.75*x)
-ax1.plot(x,y)
-ax1.set_title('Roughness of two sinusoids of same amplitude')
-ax1.set_xlabel('Estimated CB Difference')
-ax1.set_ylabel('Roughness (unitless)')
+base_fs = [125, 250, 500, 1000, 2000]
+line_styles = ['-', '--', '-.', ':', (0, (5, 10))]
+for i in range(4,-1,-1) :
+    x_log = np.logspace(0, 1, 500, base=2.0)
+    y = bu.calculate_roughness_sethares(base_fs[i], 1.0, x_log*base_fs[i],1.0)
+    ax1.plot(x_log,y, label = 'Base freq: {b}'.format(b=base_fs[i]), linestyle=line_styles[i])
+ax1.legend()
+ax1.set_title('Roughness curves of different base frequencies')
+ax1.set_xlabel('Frequency Ratio')
+ax1.set_ylabel('Roughness')
 
 ax2.vlines(440, 0, 70, colors='red', label='Masking sinusoid')
 x = np.linspace(350, 640, 500)
@@ -129,7 +139,7 @@ for i in range(4,-1,-1) :
 ax1.legend()
 ax1.set_title('Sethares diss. as function of interval')
 ax1.set_xlabel('Interval Ratio')
-ax1.set_ylabel('Roughness (unitless)')
+ax1.set_ylabel('Roughness')
 # modeled CB distance
 for i in range(4,-1,-1) :
     x_log = np.logspace(0, np.log2(3/2), 500, base=2.0)
@@ -139,51 +149,54 @@ for i in range(4,-1,-1) :
 ax2.legend()
 ax2.set_title('Sethares diss. as function of modeled CB distance')
 ax2.set_xlabel('Sethares exponent (f1,f2)')
-ax2.set_ylabel('Roughness (unitless)')
+ax2.set_ylabel('Roughness')
 f.tight_layout()
 plt.savefig('sethares_axes.png')
 plt.savefig('sethares_axes.pdf')
 plt.clf()
 
-base_fs = [125, 250, 500, 1000, 2000, 4000, 8000]
-f, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(11,11), sharey='row', sharex='col')
-# different exponents
-for i in range(7) :
-    upper_freqs = np.linspace(base_fs[i], bu.bark_to_hz(bu.hz_to_bark(base_fs[i]) + 1), 500)
-    # bark
-    x_bark = bu.get_bark_diff(base_fs[i], upper_freqs)
-    # erb 1
-    y_erb1 = get_cbdist_erb1(base_fs[i],upper_freqs)
-    ax1.plot(x_bark,y_erb1,label = 'ERB diff, base freq: {b}'.format(b=base_fs[i]))
-    # erb 2
-    y_erb2 = get_cbdist_erb2(base_fs[i],upper_freqs)
-    ax2.plot(x_bark,y_erb2,label = 'ERB diff, base freq: {b}'.format(b=base_fs[i]))
-    # seth
-    y_seth = roughness_func_exp(base_fs[i], upper_freqs)
-    ax3.plot(x_bark,y_seth,label = 'Seth exp, base freq: {b}'.format(b=base_fs[i]))
-    # other bark
-    y_bark = get_bark_distance_zwicker(base_fs[i], upper_freqs)
-    ax4.plot(x_bark,y_bark,label = 'Bark diff (Z), base freq: {b}'.format(b=base_fs[i]))
-ax1.plot(x_bark, x_bark, 'k--', label='y=Bark diff (T)')
-ax2.plot(x_bark, x_bark, 'k--', label='y=Bark diff (T)')
-ax3.plot(x_bark, x_bark, 'k--', label='y=Bark diff (T)')
-ax4.plot(x_bark, x_bark, 'k--', label='y=Bark diff (T)')
-ax1.legend()
-ax2.legend()
-ax3.legend()
-ax4.legend()
-ax1.set_title('Distance in ERB (Linear) up to 1 Bark (Traunmuller) Away')
-ax2.set_title('Distance in ERB (Quadratic) up to 1 Bark (Traunmuller) Away')
-ax3.set_title('Distance in Sethares Exponent up to 1 Bark (Traunmuller) Away')
-ax4.set_title('Distance in Bark (Zwicker) up to 1 Bark (Traunmuller) Away')
-ax3.set_xlabel('Distance in Barks')
-ax4.set_xlabel('Distance in Barks')
-ax1.set_ylabel('Modeled difference')
-ax3.set_ylabel('Modeled difference')
+# CB equations
+f, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(11,8), sharey='row', sharex='col')
+
+fs = [500, 1500]
+axs = [ax1,ax2,ax3,ax4]
+for i in range(2) :
+    x = np.linspace(fs[i], fs[i]+200, 500)
+    y_seth = roughness_func_exp(fs[i], x)
+    y_erb = get_cbw_diff_erb(fs[i], x)
+    y_bark = bu.get_bark_diff(fs[i],x)
+    y_hutch = get_cbw_diff_hutchinson(fs[i], x)
+    ax1 = axs[i]
+    ax1.plot(x,y_seth,'b-',label = 'Sethares exponent')
+    ax1.plot(x,y_erb, 'k-', label = 'Hutchinson exponent (ERB)')
+    ax1.plot(x,y_bark, 'g-', label = 'Bark difference (Traunmuller)')
+    ax1.plot(x,y_hutch, 'r-', label = 'Hutchinson exponent (CBW)')
+    ax1.legend()
+    ax1.set_title('Frequency Difference as Critical Bandwidth')
+    ax1.set_xlabel('Frequency')
+    ax1.set_ylabel('Critical Bandwidth Estimate')
+
+    ax2 = axs[i+2]
+    seth_norm = 1/(np.exp(-3.5*0.24) - np.exp(-5.75*0.24))
+    y_seth=seth_norm*(np.exp(-3.5*y_seth)-np.exp(-5.75*y_seth))
+    y_erb=seth_norm*(np.exp(-3.5*y_erb)-np.exp(-5.75*y_erb))
+    y_bark=seth_norm*(np.exp(-3.5*y_bark)-np.exp(-5.75*y_bark))
+    y_hutch=seth_norm*(np.exp(-3.5*y_hutch)-np.exp(-5.75*y_hutch))
+    ax2.plot(x, y_seth, 'b-', label='Sethares exponent')
+    ax2.plot(x, y_erb, 'k-', label='Hutchinson exponent (ERB)')
+    ax2.plot(x, y_bark, 'g-', label='Bark difference (Traunmuller)')
+    ax2.plot(x, y_hutch, 'r-', label='Hutchinson exponent (CBW)')
+    ax2.vlines(x[np.argmax(y_seth)], 0, 1, 'blue', 'dotted')
+    ax2.vlines(x[np.argmax(y_erb)], 0, 1, 'black', 'dotted')
+    ax2.vlines(x[np.argmax(y_bark)], 0, 1, 'green', 'dotted')
+    ax2.vlines(x[np.argmax(y_hutch)], 0, 1, 'red', 'dotted')
+    ax2.legend()
+    ax2.set_title('Roughness Estimate by CB Model')
+    ax2.set_xlabel('Frequency')
+    ax2.set_ylabel('Roughness model (Sethares)')
 
 f.tight_layout()
-plt.savefig('critical_band_diffs.png')
-plt.savefig('critical_band_diffs.pdf')
+plt.savefig('cb_models.pdf')
 plt.clf()
 
 # ----------------------
@@ -196,16 +209,20 @@ f, (ax1, ax2) = plt.subplots(1, 2, sharey='row', figsize=(14,4))
 
 #ax1 = plt.subplot(1,2,1)
 # dissonance function
-x = np.linspace(0,0.6,250)
-y = np.exp(-3.5*x) - np.exp(-5.75*x)
-ax1.plot(x,y)
+#x = np.linspace(0,0.6,250)
+#y = np.exp(-3.5*x) - np.exp(-5.75*x)
+#ax1.plot(x,y)
 
 # starting roughness
 f1 = 440
 f2 = 470 # changing bc it's quieter
 
+x = np.linspace(f1, f1+100, 500)
+y = bu.calculate_roughness_sethares(f1, 1.0, x, 1.0)
+ax1.plot(x,y,label='Roughness curve')
+
 colors=['red', 'orange', 'green', 'purple']
-linestyles=['solid', 'dashed', 'dashdot', 'dotted']
+linestyles=[(5, (10, 3)), 'dashed', 'dashdot', 'dotted']
 
 lines_x, lines_ymin, lines_ymax, labels = get_vline_params(f1, f2, 3)
 
@@ -213,29 +230,33 @@ for i in range(4) :
     ax1.vlines(lines_x[i], lines_ymin[i], lines_ymax[i],
                colors=colors[i], linestyles=linestyles[i], label=labels[i])
 
-ax1.annotate('Allowable range in Barks', xy=(0.336, 0.70), xytext=(0.336, 0.80), xycoords='axes fraction', 
+ax1.annotate('Allowable range in Barks', xy=(0.279, 0.70), xytext=(0.279, 0.80), xycoords='axes fraction', 
             fontsize=12.0, ha='center', va='bottom',
             bbox=dict(boxstyle='square', fc='white'),
-            arrowprops=dict(arrowstyle='-[, widthB=8.5, lengthB=1.5', lw=2.0))
+            arrowprops=dict(arrowstyle='-[, widthB=7.0, lengthB=1.5', lw=2.0))
 #ax1.vlines(lines_x, lines_ymin, lines_ymax, 
 #           colors=['red', 'orange', 'green', 'purple'],
 #           linestyles=['solid', 'dashed', 'dashdot', 'dotted'],
 #           label = ['orig', 'consonant', 'dissonant', 'hard bashed'])
 ax1.set_title('Frequency bashing - base: {f1} Hz'.format(f1=f1))
-ax1.set_xlabel('Estimated CB distance (2)')
-ax1.set_ylabel('Roughness (unitless)')
-ax1.legend(fontsize='x-large')
+ax1.set_xlabel('Frequency')
+ax1.set_ylabel('Roughness')
+ax1.legend(fontsize='x-large', loc=4)
 
 # plot 2
 #ax2 = plt.subplot(1,2,2)
 # dissonance function
-x = np.linspace(0,0.6,250)
-y = np.exp(-3.5*x) - np.exp(-5.75*x)
-ax2.plot(x,y)
+#x = np.linspace(0,0.6,250)
+#y = np.exp(-3.5*x) - np.exp(-5.75*x)
+#ax2.plot(x,y)
 
 # starting roughness
 f1 = 880
 f2 = 910 # changing bc it's quieter
+
+x = np.linspace(f1, f1+100, 500)
+y = bu.calculate_roughness_sethares(f1, 1.0, x, 1.0)
+ax2.plot(x,y,label='Roughness curve')
 
 lines_x, lines_ymin, lines_ymax, labels = get_vline_params(f1, f2, 3)
 for i in range(4) :
@@ -243,12 +264,12 @@ for i in range(4) :
                colors=colors[i], linestyles=linestyles[i], label=labels[i])
 
 ax2.set_title('Frequency bashing - base: {f1} Hz'.format(f1=f1))
-ax2.set_xlabel('Estimated CB distance (2)')
-ax2.legend(fontsize='x-large')
-ax2.annotate('Allowable range in Barks', xy=(0.336, 0.70), xytext=(0.336, 0.80), xycoords='axes fraction', 
+ax2.set_xlabel('Frequency')
+ax2.legend(fontsize='x-large', loc=4)
+ax2.annotate('Allowable range in Barks', xy=(0.351, 0.70), xytext=(0.351, 0.80), xycoords='axes fraction', 
             fontsize=12.0, ha='center', va='bottom',
             bbox=dict(boxstyle='square', fc='white'),
-            arrowprops=dict(arrowstyle='-[, widthB=8.5, lengthB=1.5', lw=2.0))
+            arrowprops=dict(arrowstyle='-[, widthB=9.2, lengthB=1.5', lw=2.0))
 f.tight_layout()
 plt.savefig('freq_bashing.pdf')
 plt.savefig('freq_bashing.png')
@@ -283,8 +304,8 @@ new_db1 = 20*np.log10(new_a1)
 new_db2 = 20*np.log10(new_a2)
 x_p = np.linspace(f1, f2, 250)
 y_p = [new_db1+plot_offset-bu.get_masking_level_dB(f1, f) for f in x_p]
-ax1.plot(x_p,y_p, 'g:', label='New masking curve')
 ax1.scatter([f1,f2], [new_db1+plot_offset, new_db2+plot_offset], c='black', marker='x', label='Whacked amplitudes')
+ax1.plot(x_p,y_p, 'g:', label='New masking curve')
 ax1.set_title('Amplitude whacking - lower freq. louder'.format(f1=f1))
 
 ax1.legend(fontsize='x-large')
@@ -309,8 +330,8 @@ new_db1 = 20*np.log10(new_a1)
 new_db2 = 20*np.log10(new_a2)
 x_p = np.linspace(f1, f2, 250)
 y_p = [new_db2+plot_offset-bu.get_masking_level_dB(f2, f) for f in x_p]
-ax2.plot(x_p,y_p, 'g:', label='New masking curve')
 ax2.scatter([f1,f2], [new_db1+plot_offset, new_db2+plot_offset], c='black', marker='x', label='Whacked amplitudes')
+ax2.plot(x_p,y_p, 'g:', label='New masking curve')
 ax2.set_title('Amplitude whacking - higher freq. louder'.format(f1=f1))
 ax2.legend(fontsize='x-large')
 f.tight_layout()
@@ -482,8 +503,8 @@ bashed_freqs[3] = bu.bash_freq(vanilla_freqs[3], vanilla_freqs[12], 0.03, 0.35, 
 bashed_freqs[14] = bu.bash_freq(vanilla_freqs[14], vanilla_freqs[23], 0.03, 0.35, False)
 bashed_freqs[4] = bu.bash_freq(vanilla_freqs[4], vanilla_freqs[13], 0.03, 0.35, False)
 
-original_freqs1 = np.array([vanilla_freqs[3], vanilla_freqs[14], vanilla_freqs[4]]).copy()
-original_amps1 = np.array([vanilla_amps[3], vanilla_amps[14], vanilla_amps[4]]).copy()
+tmp_freqs1 = np.array([bashed_freqs[3], bashed_freqs[14], bashed_freqs[4]]).copy()
+tmp_amps1 = np.array([bashed_amps[3], bashed_amps[14], bashed_amps[4]]).copy()
 
 whacked_amps[3], whacked_amps[12] = bu.whack_amp(vanilla_freqs[3], vanilla_amps[3], vanilla_freqs[12], vanilla_amps[12], 1.0)
 whacked_amps[14], whacked_amps[23] = bu.whack_amp(vanilla_freqs[14], vanilla_amps[14], vanilla_freqs[23], vanilla_amps[23], 1.0)
@@ -495,8 +516,8 @@ print(bu.whack_amp(vanilla_freqs[3], vanilla_amps[3], vanilla_freqs[12], vanilla
 print(whacked_amps[3])
 print(whacked_amps[12])
 
-original_freqs2 = np.array([vanilla_freqs[3], vanilla_freqs[12], vanilla_freqs[14], vanilla_freqs[23], vanilla_freqs[4], vanilla_freqs[13]]).copy()
-original_amps2 = np.array([vanilla_amps[3], vanilla_amps[12], vanilla_amps[14], vanilla_amps[23], vanilla_amps[4], vanilla_amps[13]]).copy()
+tmp_freqs2 = np.array([whacked_freqs[3], whacked_freqs[12], whacked_freqs[14], whacked_freqs[23], whacked_freqs[4], whacked_freqs[13]]).copy()
+tmp_amps2 = np.array([whacked_amps[3], whacked_amps[12], whacked_amps[14], whacked_amps[23], whacked_amps[4], whacked_amps[13]]).copy()
 
 vanilla_freqs = np.array(vanilla_freqs)
 vanilla_amps = np.array(vanilla_amps)
@@ -514,11 +535,13 @@ bashed_amps = 20*np.log10(bashed_amps)
 #vanilla_amps -= np.min(vanilla_amps)
 #bashed_amps -= np.min(vanilla_amps)
 #whacked_amps -= np.min(vanilla_amps)
-original_amps1 = (20*np.log10(original_amps1)) + 40
-original_amps2 = (20*np.log10(original_amps2)) + 40
+#original_amps1 = (20*np.log10(original_amps1)) + 40
+#original_amps2 = (20*np.log10(original_amps2)) + 40
 vanilla_amps += 40
 bashed_amps += 40
 whacked_amps += 40
+tmp_amps1 = 20*np.log10(tmp_amps1) + 40
+tmp_amps2 = 20*np.log10(tmp_amps2) + 40
 
 sort_order = np.argsort(vanilla_freqs)
 vanilla_freqs = vanilla_freqs[sort_order]
@@ -528,12 +551,12 @@ vanilla_amps = vanilla_amps[sort_order]
 bashed_amps = bashed_amps[sort_order]
 whacked_amps = whacked_amps[sort_order]
 
-f, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(14,6), sharey='row')
+f, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(14,4), sharey='row')
 ax1.stem(vanilla_freqs, vanilla_amps)
-ax2.stem(original_freqs1, original_amps1, linefmt='r--', markerfmt='x',label='original frequencies')
-ax2.stem(bashed_freqs, bashed_amps)
-ax3.stem(original_freqs2, original_amps2, linefmt='r--', markerfmt='x',label='original amplitudes')
-ax3.stem(whacked_freqs, whacked_amps)
+ax2.stem(vanilla_freqs, vanilla_amps)
+ax2.stem(tmp_freqs1, tmp_amps1, linefmt='r--', markerfmt='x',label='bashed frequencies')
+ax3.stem(vanilla_freqs, vanilla_amps)
+ax3.stem(tmp_freqs2, tmp_amps2, linefmt='r--', markerfmt='x',label='whacked amplitudes')
 ax1.set_ylabel('dB')
 #ax2.set_ylabel('dB')
 #ax3.set_ylabel('dB')
@@ -588,7 +611,3 @@ f.tight_layout()
 plt.savefig('spect_difference2.pdf')
 plt.savefig('spect_difference2.png')
 plt.clf()
-
-
-
-
