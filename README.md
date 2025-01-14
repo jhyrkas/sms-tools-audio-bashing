@@ -1,3 +1,9 @@
+2025 UPDATE
+==========
+
+sms-tools is now an installable Python library. This repo is left up for historical purposes, but new users should refer to the new
+repository: https://github.com/jhyrkas/audio-bashing
+
 sms-tools-audio-bashing
 =========
 Fork of sms-tools. This repo contains code for the frequency bashing and amplitude whacking algorithms for roughness control in mixes of audio files.
